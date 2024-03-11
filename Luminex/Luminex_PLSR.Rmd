@@ -3722,7 +3722,7 @@ pheatmap(tgfb.dat, cluster_rows = F, cluster_cols = T, color = colorRampPalette(
 ```
 
 #PLSR - no TGFb
-```{r}
+```{r eval=FALSE, include=FALSE}
 
 rows.dmso <- c(1, 4, 7, 10)
 rows.tmz <- c(2,5,8,11)

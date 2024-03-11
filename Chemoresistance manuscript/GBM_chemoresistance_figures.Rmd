@@ -121,7 +121,7 @@ hsd1
 ##7.29.22 pretreat data
 ```{r}
 ##this is the data to use for the paper
-pheno.import <- read_excel("../07-29-22 U87L pretreat TMZ carb cell death results.xlsx", range = "A1:H13")
+pheno.import <- read_excel("../../07-29-22 U87L pretreat TMZ carb cell death results.xlsx", range = "A1:H13")
 
 pheno <- pheno.import %>% 
   dplyr::select(pretreat, treat, rep1, rep2, rep3) %>% 
@@ -179,7 +179,7 @@ hsd1
 
 ##cotreat
 ```{r eval=FALSE, include=FALSE}
-pheno.cotreat <- read_excel("../01-28-23 U87L co-treat cell death results.xlsx")
+pheno.cotreat <- read_excel("../../01-28-23 U87L co-treat cell death results.xlsx")
 
 pheno.co <- pheno.cotreat %>% 
   dplyr::select(cotreat, treat, rep1, rep2, rep3) %>% 
@@ -228,7 +228,7 @@ hsd1
 #FADD data
 ##FADD si cell death
 ```{r}
-dat1 <- read_excel("../01-15-23 U87L FADD si TMZ carbo cell death results.xlsx")
+dat1 <- read_excel("../../01-15-23 U87L FADD si TMZ carbo cell death results.xlsx")
 
 dat2 <- dat1 %>% 
   dplyr::select(siRNA, treat, rep1, rep2, rep3) %>% 
@@ -267,7 +267,7 @@ for (t in unique(factor(dat2$treat))) {
 
 ##U87L Myc si cell death
 ```{r}
-dat1 <- read_excel("../02-06-23 U87L cMyc kd cell death results.xlsx")
+dat1 <- read_excel("../../02-06-23 U87L cMyc kd cell death results.xlsx")
 
 dat2 <- dat1 %>% 
   dplyr::select(siRNA, treat, rep1, rep2, rep3) %>% 
@@ -304,7 +304,7 @@ for (t in unique(factor(dat2$treat))) {
 ```
 ##LN18 Myc si cell death
 ```{r}
-dat1 <- read_excel("../10-01-23 LN18 MYC si TMZ CARBO cell death results.xlsx")
+dat1 <- read_excel("../../10-01-23 LN18 MYC si TMZ CARBO cell death results.xlsx")
 
 dat2 <- dat1 %>% 
   dplyr::select(siRNA, treat, rep1, rep2, rep3) %>% 
@@ -344,8 +344,8 @@ for (t in unique(factor(dat2$treat))) {
 
 ##FADD/MYC qPCR
 ```{r}
-dat1 <- read_excel("../02-28-23 U87L FADD MYC si RTqPCR (FADD MYC).xlsx", sheet = "Plate 1", range = "C29:F35") %>% 
-  rbind(read_excel("../08-23-23 U87L FADD MYC RTqPCR.xlsx", sheet = "Plate 1", range = "C19:F22")) %>% dplyr::select(-GAPDH)
+dat1 <- read_excel("../../02-28-23 U87L FADD MYC si RTqPCR (FADD MYC).xlsx", sheet = "Plate 1", range = "C29:F35") %>% 
+  rbind(read_excel("../../08-23-23 U87L FADD MYC RTqPCR.xlsx", sheet = "Plate 1", range = "C19:F22")) %>% dplyr::select(-GAPDH)
 colnames(dat1)[1] <- "siRNA"
 
 dat1$siRNA <- dat1$siRNA %>% gsub(" [1-2]", "", .)
@@ -382,7 +382,7 @@ ggsave("figure export/MYC_qPCR_FADDsi.svg", width = 0.8, height = 1.8, units = "
 
 
 ##FADD kd validation
-dat1 <- read_excel("../01-12-23 U87L PTEN FADD siRNA RTqPCR.xlsx", sheet = "Plate 1", range = "C46:F58") %>% .[7:12,-2] %>% dplyr::select(-PTEN)
+dat1 <- read_excel("../../01-12-23 U87L PTEN FADD siRNA RTqPCR.xlsx", sheet = "Plate 1", range = "C46:F58") %>% .[7:12,-2] %>% dplyr::select(-PTEN)
 colnames(dat1)[1] <- "siRNA"
 dat1$siRNA <- dat1$siRNA %>% gsub(" A| B| C", "", .) %>% gsub("ctrl", "Control", .) %>% gsub("[1-9]", "", .) %>% gsub(" si", "\nsiRNA", .)
 
@@ -403,7 +403,7 @@ ggsave("figure export/FADD_qPCR_FADDsi.svg", width = 1, height = 1.8, units = "i
 
 ##MYC si validation WB
 ```{r}
-dat1 <- read_excel("../10-30-23 U87L LN18 cMyc kd validation BCA WB.xlsx", sheet = "WB", range = "J1:L13") %>% .[,-2] %>% 
+dat1 <- read_excel("../../10-30-23 U87L LN18 cMyc kd validation BCA WB.xlsx", sheet = "WB", range = "J1:L13") %>% .[,-2] %>% 
   mutate(cell_line = case_when(
     grepl("U87", sample) ~ "U87MG",
     grepl("LN18", sample) ~ "LN18"),
@@ -434,7 +434,7 @@ ggsave("figure export/Myc_kd_WB_validation.svg", width = 1.5, height = 1.3, unit
 
 ##FADD/MYC double kd validation WB
 ```{r}
-dat1 <- read_excel("../11-13-23 U87L FADD+MYC kd validation BCA WB.xlsx", sheet = "WB", range = "J1:L19") %>% 
+dat1 <- read_excel("../../11-13-23 U87L FADD+MYC kd validation BCA WB.xlsx", sheet = "WB", range = "J1:L19") %>% 
   mutate(siRNA = if_else(grepl("Ctrl", sample), "Control", "FADD+cMyc"))
 dat1$siRNA <- dat1$siRNA %>% factor(c("Control", "FADD+cMyc"))
 dat1 <- dat1 %>% group_by(protein) %>% mutate(to_plot = signal_norm/max(signal_norm))
@@ -482,7 +482,7 @@ t.test(v3, v4)
 
 ##TNFa hypoxia TMZ cell death
 ```{r}
-dat1 <- read_excel("../07-17-23 U87L TNFa hypoxia TMZ cell death results.xlsx", range = "A9:D14")
+dat1 <- read_excel("../../07-17-23 U87L TNFa hypoxia TMZ cell death results.xlsx", range = "A9:D14")
 
 dat1 <- dat1 %>% mutate(chemo = case_when(
   grepl("DMSO", treat) ~ "DMSO",
@@ -533,10 +533,10 @@ dat2 %>% ggplot(aes(x = treat, y = dead))+
 ##CK1a inhib IF
 ```{r}
 ##FADD IF
-nuc_fadd <- rbind(read_csv("../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/DMSO_nuclei.csv"),
-                  read_csv("../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/TMZ_nuclei.csv"))
-total_fadd <- rbind(read_csv("../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/DMSO_total.csv"),
-                    read_csv("../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/TMZ_total.csv"))
+nuc_fadd <- rbind(read_csv("../../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/DMSO_nuclei.csv"),
+                  read_csv("../../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/TMZ_nuclei.csv"))
+total_fadd <- rbind(read_csv("../../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/DMSO_total.csv"),
+                    read_csv("../../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/TMZ_total.csv"))
 
 colnames(nuc_fadd) <- colnames(nuc_fadd) %>% gsub("Intensity_", "", .)
 colnames(nuc_fadd)[9:10] <- colnames(nuc_fadd)[9:10] %>% paste("_nuc", sep="")
@@ -594,8 +594,8 @@ ggbetweenstats(dat1, x = treat, y = MeanFADD_tot)
 
 ##MYC IF
 nuc_myc <- rbind(
-  read_csv("../10-18-23 U87L CK1ai IF (cMyc)/DMSO_nuclei.csv"),
-  read_csv("../10-18-23 U87L CK1ai IF (cMyc)/TMZ_nuclei.csv")
+  read_csv("../../10-18-23 U87L CK1ai IF (cMyc)/DMSO_nuclei.csv"),
+  read_csv("../../10-18-23 U87L CK1ai IF (cMyc)/TMZ_nuclei.csv")
 )
 
 
@@ -647,7 +647,7 @@ t.test(
 
 ##CK1ai cell death
 ```{r}
-dat1 <- read_excel("../12-08-22 U87L cell death results TMZ carbo NCC007.xlsx", range = "A1:E7")
+dat1 <- read_excel("../../12-08-22 U87L cell death results TMZ carbo NCC007.xlsx", range = "A1:E7")
 
 dat2 <- dat1 %>% 
   dplyr::select(drug1, drug2, rep1, rep2, rep3) %>% 
@@ -695,7 +695,7 @@ for (t in unique(factor(dat2$drug1))) {
 ```
 ##FADD+MYC si cell death
 ```{r}
-dat1 <- read_excel("../08-19-23 U87L FADD+MYC kd TMZ carbo cell death results.xlsx", range = "A1:E9")
+dat1 <- read_excel("../../08-19-23 U87L FADD+MYC kd TMZ carbo cell death results.xlsx", range = "A1:E9")
 
 dat2 <- dat1 %>%
   pivot_longer(-c(siRNA, treat), values_to = "alive", names_to = "rep") %>% 
@@ -731,7 +731,7 @@ TukeyHSD(anova2)
 ```
 ##TNFa+Hyp MYC RTqPCR
 ```{r}
-dat1 <- read_excel("../09-05-23 U87L TNFa Hyp RTqPCR also Myc si.xlsx", sheet = "Plate 1", range = "G46:J58")
+dat1 <- read_excel("../../09-05-23 U87L TNFa Hyp RTqPCR also Myc si.xlsx", sheet = "Plate 1", range = "G46:J58")
 colnames(dat1)[1] <- "treat"
 dat1 <- dat1[, -2]
 dat1$treat <- dat1$treat %>% gsub(" [1-9]", "", .) %>% gsub("TNFa", "TNF\u03B1", .)
@@ -759,7 +759,7 @@ TukeyHSD(anova1)
 
 ##U87L-MYC hypoxia cell death
 ```{r}
-dat1 <- read_excel("../12-05-23 U87L-MYC hypoxia TMZ carbo cell death results.xlsx", range = "A1:F13") %>% 
+dat1 <- read_excel("../../12-05-23 U87L-MYC hypoxia TMZ carbo cell death results.xlsx", range = "A1:F13") %>% 
   pivot_longer(cols = -c(O2, line, drug), values_to = "alive", names_to = "rep") %>% 
   mutate(dead = 100-alive)
 dat1$O2 <- dat1$O2 %>% factor(c("21", "1"))
@@ -827,7 +827,7 @@ pairs(emmeans(yes_int, specs = c("line", "O2")))
 #PTEN data
 ## U87L PTEN si cell death
 ```{r}
-dat1 <- read_excel("../12-19-22 U87L siPTEN TMZ carbo cell death results.xlsx", range = "A1:H7")
+dat1 <- read_excel("../../12-19-22 U87L siPTEN TMZ carbo cell death results.xlsx", range = "A1:H7")
 colnames(dat1) <- colnames(dat1) %>% gsub("si", "siRNA", .) %>% gsub("chemo", "treat", .)
 dat1$siRNA <- dat1$siRNA %>% gsub("Ctrl", "Control siRNA", .) %>% gsub("PTEN", "PTEN siRNA", .)
 
@@ -869,7 +869,7 @@ for (t in unique(factor(dat2$treat))) {
 ```
 ##LN18 PTEN si cell death
 ```{r}
-dat1 <- read_excel("../09-05-23 LN18 siPTEN TMZ CARBO cell death results.xlsx", range = "A1:H7")
+dat1 <- read_excel("../../09-05-23 LN18 siPTEN TMZ CARBO cell death results.xlsx", range = "A1:H7")
 dat1$siRNA <- dat1$siRNA %>% gsub("Control", "Control siRNA", .) %>% gsub("PTEN", "PTEN siRNA", .)
 
 dat2 <- dat1 %>% 
@@ -913,7 +913,7 @@ for (t in unique(factor(dat2$treat))) {
 
 ##PTEN si cell cycle
 ```{r}
-dat1 <- read_excel("../02-27-23 U87L siPTEN TMZ carbo cell cycle analysis.xlsx", range = "A2:H8")
+dat1 <- read_excel("../../02-27-23 U87L siPTEN TMZ carbo cell cycle analysis.xlsx", range = "A2:H8")
 colnames(dat1) <- c("siRNA", "treat", "G1", "G2", "S", "G1", "G2", "S")
 
 dat1 <- dat1 %>% pivot_longer(cols = -c(siRNA, treat), names_to = "phase", values_to = "pct")
@@ -944,7 +944,7 @@ ggsave("figure export/PTEN_siRNA_cell-cycle.svg", width = 3, height = 2, units =
 
 ## Chk1i cell death
 ```{r}
-dat1 <- read_excel("../04-14-23 U87L TMZ carbo Chk1i cell death results.xlsx", range = "A1:G7")
+dat1 <- read_excel("../../04-14-23 U87L TMZ carbo Chk1i cell death results.xlsx", range = "A1:G7")
 
 dat1 <- dat1 %>% mutate(chemo = case_when(
   grepl("DMSO", treat) ~ "DMSO",
@@ -1000,7 +1000,7 @@ for (t in unique(factor(dat2$chemo))) {
 ```
 ##Chk1i cell cycle
 ```{r}
-dat1 <- read_excel("../05-08-23 U87L TMZ carbo Chk1i cell cycle analysis.xlsx", range = "A2:K8")
+dat1 <- read_excel("../../05-08-23 U87L TMZ carbo Chk1i cell cycle analysis.xlsx", range = "A2:K8")
 colnames(dat1) <- c("treat", "inhib", "G1", "G2", "S", "G1", "G2", "S", "G1", "G2", "S")
 
 dat1 <- dat1 %>% pivot_longer(cols = -c(inhib, treat), names_to = "phase", values_to = "pct")
@@ -1025,7 +1025,7 @@ ggsave("figure export/Chk1i_cell-cycle.svg", width = 2, height = 2, units = "in"
 
 ## mTORi cell death
 ```{r}
-dat1 <- read_excel("../06-26-23 U87L TMZ carbo mTORi cell death results.xlsx", range = "A1:G7")
+dat1 <- read_excel("../../06-26-23 U87L TMZ carbo mTORi cell death results.xlsx", range = "A1:G7")
 
 dat1 <- dat1 %>% mutate(chemo = case_when(
   grepl("DMSO", treat) ~ "DMSO",
@@ -1082,7 +1082,7 @@ for (t in unique(factor(dat2$chemo))) {
 
 ## GSK3i cell death
 ```{r}
-dat1 <- read_excel("../07-01-23 U87L TMZ carbo GSK3i cell death results.xlsx", range = "A1:G7")
+dat1 <- read_excel("../../07-01-23 U87L TMZ carbo GSK3i cell death results.xlsx", range = "A1:G7")
 
 dat1 <- dat1 %>% mutate(chemo = case_when(
   grepl("DMSO", treat) ~ "DMSO",
@@ -1138,7 +1138,7 @@ for (t in unique(factor(dat2$chemo))) {
 
 ## PI3Ki cell death
 ```{r}
-dat1 <- read_excel("../09-04-23 U87L TMZ carbo PI3Ki cell death results.xlsx", range = "A1:G7")
+dat1 <- read_excel("../../09-04-23 U87L TMZ carbo PI3Ki cell death results.xlsx", range = "A1:G7")
 
 dat1 <- dat1 %>% mutate(chemo = case_when(
   grepl("DMSO", treat) ~ "DMSO",
@@ -1194,7 +1194,7 @@ for (t in unique(factor(dat2$chemo))) {
 
 ##PTEN kd + PI3Ki cell death
 ```{r}
-dat1 <- read_excel("../08-14-23 U87L-shPTEN TMZ carbo PI3Ki cell death results.xlsx", range = "A1:E9")
+dat1 <- read_excel("../../08-14-23 U87L-shPTEN TMZ carbo PI3Ki cell death results.xlsx", range = "A1:E9")
 dat1 <- dat1 %>% mutate(chemo = if_else(grepl("TMZ", treat), "TMZ", "CARBO"),
                         inhib = if_else(grepl("PI3Ki", treat), "PI3Ki", "DMSO"))
 
@@ -1235,7 +1235,7 @@ t.test(v3, v4)
 ##PTEN si validation qPCR
 ```{r}
 ##U87L PTEN kd validation
-dat1 <- read_excel("../01-12-23 U87L PTEN FADD siRNA RTqPCR.xlsx", sheet = "Plate 1", range = "C46:F58") %>% .[1:6,-2] %>% dplyr::select(-FADD)
+dat1 <- read_excel("../../01-12-23 U87L PTEN FADD siRNA RTqPCR.xlsx", sheet = "Plate 1", range = "C46:F58") %>% .[1:6,-2] %>% dplyr::select(-FADD)
 colnames(dat1)[1] <- "siRNA"
 dat1$siRNA <- dat1$siRNA %>% gsub("ctrl", "Control", .) %>% gsub("[1-9]", "", .) %>% gsub(" si", "\nsiRNA", .)
 
@@ -1254,7 +1254,7 @@ ggsave("figure export/U87L_PTEN_qPCR_PTENsi.svg", width = 1, height = 1.8, units
 
 
 ##LN18 PTEN kd validation
-dat1 <- read_excel("../10-19-23 LN18 PTEN Myc si RTqPCR (PTEN MYC).xlsx", sheet = "Plate 1", range = "C37:E43") %>% .[1:6,-2]
+dat1 <- read_excel("../../10-19-23 LN18 PTEN Myc si RTqPCR (PTEN MYC).xlsx", sheet = "Plate 1", range = "C37:E43") %>% .[1:6,-2]
 colnames(dat1)[1] <- "siRNA"
 dat1$siRNA <- dat1$siRNA %>% gsub(" ", "\n", .)
 
@@ -1274,7 +1274,7 @@ ggsave("figure export/LN18_PTEN_qPCR_PTENsi.svg", width = 1, height = 1.8, units
 ```
 ##PTEN IF
 ```{r}
-path <- "../12-20-22 U87L JNKi TMZ carbo IF exp (PTEN)/"
+path <- "../../12-20-22 U87L JNKi TMZ carbo IF exp (PTEN)/"
 nuc <- rbind(read_csv(paste(path, "DMSO_nuclei.csv", sep = "")),
              read_csv(paste(path, "TMZ_nuclei.csv", sep = "")),
              read_csv(paste(path, "CARB_nuclei.csv", sep = "")))
@@ -1318,7 +1318,7 @@ ggsave("figure export/nuc-PTEN_TMZ_CARBO.svg", width = 1.5, height = 2, units = 
 
 ##PTEN si/PI3Ki blot
 ```{r}
-dat1 <- read_excel("../09-29-23 U87L PTEN si PI3Ki BCA WB.xlsx", sheet = "WB - 11.2.23", range = "A1:K37") %>% dplyr::select(Signal, protein, sample)
+dat1 <- read_excel("../../09-29-23 U87L PTEN si PI3Ki BCA WB.xlsx", sheet = "WB - 11.2.23", range = "A1:K37") %>% dplyr::select(Signal, protein, sample)
 dat2 <- dat1 %>% pivot_wider(names_from = protein, values_from = Signal) %>% 
   mutate(
     pAkt_norm = pAkt/GAPDH,
@@ -1408,7 +1408,7 @@ ggsave("figure export/PI3Ki_WB_pGSK3b.svg", width = 1.1, height = 1.2, units = "
 
 #shRNA validation
 ```{r}
-dat1 <- read_excel("../09-11-23 U87L-shRNA RTqPCR screen.xlsx", sheet = "Plate 1", range = "C55:F70")
+dat1 <- read_excel("../../09-11-23 U87L-shRNA RTqPCR screen.xlsx", sheet = "Plate 1", range = "C55:F70")
 colnames(dat1)[1] <- "shRNA"
 dat1$shRNA <- dat1$shRNA
 
@@ -2007,139 +2007,3 @@ survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ BIOCARTA_hif, data = pt_gs
 
 
 
-#JNK data
-
-```{r}
-##OLD DATA DO NOT USE
-dat1 <- read_excel("../11-11-22 U87L TMZ carbo JNKi cell death results.xlsx")
-colnames(dat1) <- colnames(dat1) %>% gsub("chemo", "treat", .)
-dat1$inhib <- dat1$inhib %>% gsub("dmso", "DMSO", .) 
-
-dat2 <- dat1 %>% 
-  dplyr::select(inhib, treat, rep1, rep2, rep3) %>% 
-  pivot_longer(-c(inhib, treat), values_to = "alive", names_to = "rep") %>% 
-  mutate(dead = 100 - alive)
-
-dat3 <- dat2 %>% group_by(inhib, treat) %>% 
-  summarise(avg_dead = mean(dead), stdev = sd(dead))
-
-dat3$inhib <- dat3$inhib %>% factor(c("DMSO", "JNKi"))
-dat3$treat <- dat3$treat %>% gsub("CARB", "CARBO", .) %>% factor(c("DMSO", "TMZ", "CARBO"))
-
-dat3 %>% ggplot(aes(x = inhib, y = avg_dead, fill = inhib))+
-  geom_bar(stat = "identity", position ="dodge", color = "black")+
-  geom_errorbar(aes(ymax = avg_dead+stdev, ymin = avg_dead-stdev), width = 0.3)+
-  facet_wrap(~treat)+
-  theme_cowplot(8)+
-  labs(x = element_blank(), y = "% dead")+
-  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
-  theme(legend.position = "none")+
-  scale_fill_okabe_ito(order = c(9, 5))
-ggsave("figure export/JNKi_cell_death.svg", width = 3, height = 2, units = "in")
-
-for (t in unique(factor(dat2$treat))) {
-  c1 <- dat2 %>% filter(inhib == "DMSO", treat == t) %>% pull(dead)
-  c2 <- dat2 %>% filter(inhib == "JNKi", treat == t) %>% pull(dead)
-  print(t)
-  t.test(c1, c2) %>% print()
-}
-
-```
-##JNKi cell death - 
-```{r}
-dat1 <- read_excel("../02-28-23 siJUN JNKi TMZ carbo cell death analysis.xlsx", range = "A9:D15")
-dat1 <- dat1 %>% pivot_longer(cols = -c(inhib, treat), names_to = "rep", values_to = "alive") %>% 
-  mutate(dead = 100-alive)
-
-dat2 <- dat1 %>% group_by(inhib, treat) %>% 
-  summarise(avg_dead = mean(dead), sd = sd(dead))
-dat2$treat <- dat2$treat %>% factor(c("DMSO", "TMZ", "CARBO"))
-
-dat2 %>% ggplot(aes(x = inhib, y = avg_dead, fill = inhib))+
-  geom_bar(stat = "identity", position ="dodge", color = "black")+
-  geom_errorbar(aes(ymax = avg_dead+sd, ymin = avg_dead-sd), width = 0.3)+
-  facet_wrap(~treat)+
-  theme_cowplot(8)+
-  labs(x = element_blank(), y = "% dead")+
-  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
-  theme(legend.position = "none")+
-  scale_fill_okabe_ito(order = c(9, 5))
-ggsave("figure export/JNKi_cell_death.svg", width = 3, height = 2, units = "in")
-
-```
-
-##PTEN TMZ/CARBO qPCR
-```{r}
-dat1 <- read_excel("../11-01-22 U87L TMZ carbo RTqPCR PTEN.xlsx", sheet = "Sheet2")
-dat2 <- dat1 %>% group_by(treat) %>% summarise(mean = mean(PTEN), sd = sd(PTEN))
-dat2$treat <- dat2$treat %>% factor(c("DMSO", "TMZ", "CARBO"))
-
-dat2 %>% ggplot(aes(x = treat, y = mean, fill = treat))+
-  geom_bar(stat = "identity", position ="dodge", color = "black")+
-  geom_errorbar(aes(ymax = mean+sd, ymin = mean-sd), width = 0.3)+
-  theme_cowplot(8)+
-  labs(x = element_blank(), y = "Normalized Fold Change")+
-  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
-  theme(legend.position = "none", plot.title = element_text(face = "italic", hjust = 0.5))+
-  labs(title = "PTEN")+
-  scale_fill_okabe_ito(order = c(9, 5, 3))
-ggsave("figure export/PTEN_qPCR_TMZ-CARBO.svg", width = 1.5, height = 2, units = "in")
-
-anova1 <- aov(PTEN ~ treat, data = dat1)
-summary(anova1)
-hsd1 <- TukeyHSD(anova1)
-hsd1
-```
-
-
-##PTEN CARBO+MAPKi qPCR
-```{r}
-dat1 <- read_excel("../11-15-22 U87L carbo MAPKi Chk1i RTqPCR PTEN.xlsx", sheet = "Sheet2")
-
-dat1 <- dat1 %>% group_by(treat) %>% summarise(mean = mean(PTEN), sd = sd(PTEN))
-dat1$treat <- dat1$treat %>% gsub("\\+", "\n", .) %>% factor(c("DMSO", "CARBO", "CARBO\nJNKi", "CARBO\nMEKi", "CARBO\np38i"))
-
-dat1 %>% ggplot(aes(x = treat, y = mean, fill = treat))+
-  geom_bar(stat = "identity", position ="dodge", color = "black", aes(alpha = treat))+
-  geom_errorbar(aes(ymax = mean+sd, ymin = mean-sd), width = 0.3)+
-  theme_cowplot(8)+
-  labs(x = element_blank(), y = "Normalized Fold Change")+
-  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
-  theme(legend.position = "none", plot.title = element_text(face = "italic", hjust = 0.5))+
-  labs(title = "PTEN")+
-  scale_fill_okabe_ito(order = c(9, 5, 5, 5, 5))+
-  scale_alpha_manual(values = c(1, 1, 0.8, 0.6, 0.4))
-ggsave("figure export/PTEN_qPCR_Carbo+MAPKi.svg", width = 2.5, height = 2, units = "in")
-ggsave("figure export/PTEN_qPCR_Carbo+MAPKi.png", width = 2.5, height = 2, units = "in")
-```
-##PTEN siJUN qPCR
-```{r}
-dat1 <- read_excel("../12-09-22 U87L carbo cJun siRNA RTqPCR (PTEN cJun).xlsx", sheet = "Sheet2")
-
-dat2 <- dat1 %>% mutate(siRNA = if_else(grepl("ctrl", treat), "Control \nsiRNA", "cJun \nsiRNA"),
-                        drug = if_else(grepl("unt", treat), "Untreated", "CARBO"))
-dat3 <- dat2 %>% group_by(siRNA, drug) %>% 
-  summarise(mean = mean(PTEN), sd = sd(PTEN))
-
-dat3$siRNA <- dat3$siRNA %>% factor(c("Control \nsiRNA", "cJun \nsiRNA"))
-dat3$drug <- dat3$drug %>% factor(c("Untreated", "CARBO"))
-
-dat3 %>% ggplot(aes(x = siRNA, y = mean, fill = siRNA))+
-  geom_bar(stat = "identity", position ="dodge", color = "black")+
-  geom_errorbar(aes(ymax = mean+sd, ymin = mean-sd), position = "dodge", width = 0.3)+
-  theme_cowplot(8)+
-  labs(x = element_blank(), y = "Normalized Fold Change")+
-  scale_y_continuous(expand = expansion(mult = c(0, 0.3)))+
-  theme(legend.position = "none", plot.title = element_text(face = "italic", hjust = 0.5))+
-  labs(title = "PTEN")+
-  scale_fill_okabe_ito(order = c(9, 5))+
-  facet_wrap(~drug)
-ggsave("figure export/PTEN_qPCR_cJun-si.svg", width = 2.5, height = 2, units = "in")
-ggsave("figure export/PTEN_qPCR_cJun-si.png", width = 2.5, height = 2, units = "in")
-
-anova1 <- aov(PTEN ~ siRNA+drug, data = dat2)
-summary(anova1)
-hsd1 <- TukeyHSD(anova1)
-hsd1
-
-```
