@@ -13,3 +13,11 @@
 *.ai
 *.tif
 *.svg
+*.csv
+*.xlsx
+*.seg
+*.json
+**/LICENSE
+*.log
+**/figure export
+**/TCGA_GSVA_survival
