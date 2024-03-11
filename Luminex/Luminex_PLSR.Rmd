@@ -1,0 +1,3973 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+```{r}
+library(readxl)
+library(cowplot)
+library(ggpubr)
+library(pheatmap)
+library(tidyverse)
+library(ggokabeito)
+```
+
+```{r Clear environment}
+### Clear R workspace:
+rm(list=ls())
+```
+
+```{r Check and set working directory}
+### Check current working directory:
+cwd <- getwd()
+cwd
+### Set working directory:
+setwd(cwd) # Set current working directory to location of this notebook for easier handling and saving of data associated with the notebook
+```
+
+# define functions
+
+```{r}
+##RQ function
+rq_func <- function(model){
+  ### Get X and Y matrices:
+  xmat <- model$model$X
+  ymat <- model$model$Y
+  ### Performance metrics:
+  R2X <- explvar(model)/100
+  names(R2X) <- seq(1:length(R2X)) %>% paste("PC",.,sep="")
+  R2X.cum <- cumsum(R2X)
+  PRESS <- model$validation$PRESS
+  ## Calculate R2Y values for PLSR model:
+  model.TSS <- sum((ymat-mean(ymat))^2)
+  R2Y <- 0
+  R2Y.cum <- 0
+  for(i in 1:model$ncomp){
+    R2Y.cum[i] <- (1-sum(model$residuals[,,i]^2)/model.TSS)
+    if(i == 1){
+      R2Y[i] <- R2Y.cum[i] 
+    } 
+    else{
+      R2Y[i] <- R2Y.cum[i]-R2Y.cum[i-1]
+    }
+  }
+  ## Calculate Q2Y values for PLSR model:
+  Q2Y <- 0
+  Q2Y.cum <- 0
+  for(i in 1:model$ncomp){
+    Q2Y.cum[i] <- (1-sum(PRESS[,i])/model.TSS)
+    if(i == 1){
+      Q2Y[i] <- Q2Y.cum[i] 
+    } 
+    else{
+      Q2Y[i] <- Q2Y.cum[i]-Q2Y.cum[i-1]
+    }
+  }
+  ### Define output list:
+  output <- list(R2X=R2X, R2X.cum=R2X.cum, R2Y=R2Y, R2Y.cum=R2Y.cum, Q2Y=Q2Y, Q2Y.cum=Q2Y.cum)
+  return(output)
+}
+
+theme1 <- theme_cowplot(font_size = 8, line_size = 0.2) +
+  theme(
+    panel.background = element_rect(color = "#000000", size = 0.75)
+  )
+
+
+`%!in%` <- Negate(`%in%`)
+
+colors1 <- c("darkred", "darkblue", "darkgreen")
+```
+
+# flow data
+
+## 3d
+
+```{r}
+# import flow data (day 3) and do statistics
+
+pheno.3d.import <- read_excel("08-23-22 U87L big experiment flow results.xlsx", sheet = "day 3")
+
+pheno.3d <- pheno.3d.import %>% 
+  dplyr::select(pretreat, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(pretreat, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+pheno.3d$pretreat <- factor(pheno.3d$pretreat, c("NP", "TGFb", "TNFa", "Hypoxia"))
+
+ggbarplot(pheno.3d, x = "treat", y = "dead", add = "mean_se", fill = "pretreat", position = position_dodge(0.8))+
+  scale_y_continuous(expand = c(0,0), limits = c(0,100))+
+  labs(x = element_blank(), y = "% dead")+
+  theme(legend.title = element_blank())
+
+
+##calculating statistical significance using one-way ANOVA + Tukey post-hoc
+anova1 <- aov(dead ~ pretreat, data = pheno.3d %>% filter(treat == "DMSO"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno.3d %>% filter(treat == "TMZ"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno.3d %>% filter(treat == "CARB"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+```
+
+## 4d
+
+```{r}
+# import flow data (day 4) and do statistics
+
+pheno.4d.import <- read_excel("08-23-22 U87L big experiment flow results.xlsx", sheet = "day 4")
+
+pheno.4d <- pheno.4d.import %>% 
+  dplyr::select(pretreat, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(pretreat, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+pheno.4d$pretreat <- factor(pheno.4d$pretreat, c("NP", "TGFb", "TNFa", "Hypoxia"))
+
+ggbarplot(pheno.4d, x = "treat", y = "dead", add = "mean_se", fill = "pretreat", position = position_dodge(0.8))+
+  scale_y_continuous(expand = c(0,0), limits = c(0,100))+
+  labs(x = element_blank(), y = "% dead")+
+  theme(legend.title = element_blank())
+
+
+##calculating statistical significance using one-way ANOVA + Tukey post-hoc
+anova1 <- aov(dead ~ pretreat, data = pheno.4d %>% filter(treat == "DMSO"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno.4d %>% filter(treat == "TMZ"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno.4d %>% filter(treat == "CARB"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+```
+
+## 5d
+
+```{r}
+# import flow data (day 5) and do statistics
+
+pheno.5d.import <- read_excel("08-23-22 U87L big experiment flow results.xlsx", sheet = "day 5")
+
+pheno.5d <- pheno.5d.import %>% 
+  dplyr::select(pretreat, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(pretreat, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+pheno.5d$pretreat <- factor(pheno.5d$pretreat, c("NP", "TGFb", "TNFa", "Hypoxia"))
+
+ggbarplot(pheno.5d, x = "treat", y = "dead", add = "mean_se", fill = "pretreat", position = position_dodge(0.8))+
+  scale_y_continuous(expand = c(0,0), limits = c(0,100))+
+  labs(x = element_blank(), y = "% dead")+
+  theme(legend.title = element_blank())
+
+
+##calculating statistical significance using one-way ANOVA + Tukey post-hoc
+anova1 <- aov(dead ~ pretreat, data = pheno.5d %>% filter(treat == "DMSO"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno.5d %>% filter(treat == "TMZ"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno.4d %>% filter(treat == "CARB"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+```
+
+## combined
+
+```{r}
+# combined 3d/4d/5d pheno data
+pheno.all <- pheno.3d %>% mutate(time = 3) %>% 
+  rbind(pheno.4d %>% mutate(time = 4)) %>% 
+  rbind(pheno.5d %>% mutate(time = 5))
+pheno.all$treat <- pheno.all$treat %>% factor(c("DMSO", "TMZ", "CARB"))
+
+# pheno.use <- pheno.3d %>% filter(treat != "TMZ") %>%
+#   rbind(pheno.4d %>% filter(treat == "TMZ"))
+pheno.use <- pheno.3d
+
+
+pheno.use$treat <- pheno.use$treat %>% factor(c("DMSO", "TMZ", "CARB"))
+
+ggbarplot(pheno.use, x = "treat", y = "dead", add = "mean_se", fill = "pretreat", position = position_dodge(0.8))+
+  scale_y_continuous(expand = c(0,0), limits = c(0,100))+
+  labs(x = element_blank(), y = "% dead")+
+  theme(legend.title = element_blank())
+
+
+ggplot(data = pheno.all, aes(x = time, y = dead, color = treat, shape = pretreat))+
+  geom_line()+
+  geom_point()
+
+```
+
+```{r}
+pheno.mat <- pheno.use %>% 
+  transmute(sample = paste(pretreat, "+", treat), dead = dead) %>% 
+  dplyr::group_by(sample) %>% 
+  dplyr::summarize(avg_dead = mean(dead))
+
+pheno.mat$avg_dead <- pheno.mat$avg_dead %>% 
+  scale(center = T, scale = T)
+
+sample_order <- c("NP + DMSO", "NP + TMZ", "NP + CARB", "TGFb + DMSO", "TGFb + TMZ", "TGFb + CARB", "TNFa + DMSO", "TNFa + TMZ", "TNFa + CARB", "Hypoxia + DMSO", "Hypoxia + TMZ", "Hypoxia + CARB")
+
+pheno.mat <- pheno.mat %>% 
+  dplyr::slice(match(sample_order, .$sample)) %>% 
+  column_to_rownames(var = "sample") %>% 
+  data.matrix()
+
+# pheno.mat$sample <- pheno.mat$sample %>% factor(sample_order)
+
+pheno.mat %>% pheatmap(cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100), filename = "y_matrix_heatmap.png", width = 2, height = 6)
+
+pretreat.order <- c("NP", "TGFb", "TNFa", "Hypoxia")
+drug.order <- c("DMSO", "TMZ", "CARB")
+```
+
+# luminex - DNA damage
+
+```{r}
+# import luminex data - DNA damage kit
+sample.info <- read_excel("08-22 U87L lysate generation plan.xlsx", sheet = "lysates")
+data.dna.import <- read_excel("08-26-22 DNA damage results.xlsx", sheet = "-blank")
+
+# clean up luminex data
+data.dna <- data.dna.import
+data.dna$Sample <- data.dna$Sample %>% gsub("Unknown", "", .) %>% as.numeric()
+
+# annotate data with sample info
+data.dna <- left_join(sample.info, data.dna, by = c("number" = "Sample")) %>% 
+  mutate(sample = paste(Pretreat, Drug, time, "h"))#, treat = paste(Pretreat, Drug))
+colnames(data.dna) <- colnames(data.dna) %>% 
+  sub("Chk1", "CHK1", .) %>% 
+  sub("Chk2", "CHK2", .)
+
+  
+
+# calculate averages 
+data.dna.avg <- data.dna %>%
+  pivot_longer(cols = -c("sample", "Location", "number", "Pretreat", "Drug", "time", "rep"), 
+               names_to = "protein", values_to = "signal") %>%
+  group_by(time, Pretreat, Drug, protein) %>%
+  summarise(avg = mean(signal), stdev = sd(signal))
+
+proteins.dna <- c("ATR", "CHK1", "CHK2", "H2AX", "p53", "MDM2", "p21")
+times <- c("0", "3", "6", "12", "24")
+col.order <- character()
+for(i in proteins.dna){
+  for(j in times){
+    col.order <- col.order %>% append(paste(i, j, sep = "_"))
+  }
+}
+
+
+# fiddle with 0h time point data so that it can be joined with the rest of the data
+data.dna.0h <- data.dna.avg %>% filter(time ==0)
+data.dna.0h <- data.dna.0h %>% rbind(data.dna.0h) %>% rbind(data.dna.0h)
+num.row.dna <- nrow(data.dna.0h)
+data.dna.0h[1:(num.row.dna/3),]$Drug <- "DMSO"
+data.dna.0h[(num.row.dna/3+1):(2*num.row.dna/3),]$Drug <- "TMZ"
+data.dna.0h[(2*num.row.dna/3+1):num.row.dna,]$Drug <- "CARB"
+
+# join 0h time point data wiht the rest
+data.dna.f <- data.dna.0h %>% 
+  rbind(data.dna.avg %>% filter(time>0))
+
+# make data frame that will become X matrix
+data.wide <- data.dna.f %>% 
+  dplyr::select(-stdev) %>% 
+  pivot_wider(names_from = c(protein, time), values_from = avg) %>% 
+  mutate(treat = paste(Pretreat, "+", Drug)) %>% 
+  dplyr::select(-c(Pretreat, Drug)) %>% 
+  slice(match(sample_order, treat)) %>% 
+  column_to_rownames(var = "treat") 
+
+
+data.wide[,3:ncol(data.wide)] %>% 
+  .[,col.order] %>% 
+  .[sample_order,] %>%
+  scale(T,T) %>% 
+  pheatmap(cluster_cols = F, cluster_rows = F)
+
+data_all <- data.frame() %>% rbind(data.wide[,3:ncol(data.wide)] %>% 
+                                     .[,col.order] %>% 
+                                     .[sample_order,])
+
+data.dna.avg$Pretreat <- data.dna.avg$Pretreat %>% factor(c("NP", "TGFb", "TNFa", "Hypoxia"))
+data.dna.avg$Drug <- data.dna.avg$Drug %>% factor(c("--", "DMSO", "TMZ", "CARB"))
+
+for(i in proteins.dna){
+  # barplots
+  print(
+    ggbarplot(data = data.dna, x = "sample", y = i, add = "mean_se") + 
+      # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+      scale_y_continuous(expand = c(0,0))+
+      labs(x = element_blank())+
+      coord_flip()+scale_x_discrete(limits = rev)
+  )
+  # ggsave(filename = paste("luminex plots/", i, ".png", sep=""), height = 8, width = 6)
+  
+  # time plots
+  print(
+    data.dna.avg %>% 
+      filter(protein == i) %>% 
+      ggplot(aes(x = time, y = avg, color = Drug))+
+      geom_line(size = 1)+
+      geom_errorbar(aes(ymax = avg+stdev, ymin = avg-stdev), width = 0.2)+
+      geom_point()+
+      labs(y = i, x = "Time (hours)")+
+      theme_cowplot()+
+      
+      facet_wrap(vars(Pretreat), nrow = 1, ncol = 4)
+  )
+  # ggsave(filename = paste("luminex plots/", i, "_time", ".png", sep=""), height = 4, width = 12)
+  
+}
+
+
+```
+
+# luminex - MAPK
+
+```{r}
+# import luminex data - MAPK/SAPK kit
+sample.info <- read_excel("08-22 U87L lysate generation plan.xlsx", sheet = "lysates")
+data.mapk.import <- read_excel("08-30-22 MAPK SAPK results.xlsx", sheet = "-blank")
+
+# clean up luminex data
+data.mapk <- data.mapk.import %>% dplyr::select(-p53)
+data.mapk$Sample <- data.mapk$Sample %>% gsub("Unknown", "", .) %>% as.numeric()
+
+# annotate data with sample info
+data.mapk <- left_join(sample.info, data.mapk, by = c("number" = "Sample")) %>% 
+  mutate(sample = paste(Pretreat, Drug, time, "h"))#, treat = paste(Pretreat, Drug))
+
+# calculate averages 
+data.mapk.avg <- data.mapk %>%
+  pivot_longer(cols = -c("sample", "Location", "number", "Pretreat", "Drug", "time", "rep"), 
+               names_to = "protein", values_to = "signal") %>%
+  group_by(time, Pretreat, Drug, protein) %>%
+  summarise(avg = mean(signal), stdev = sd(signal))
+
+proteins.mapk <- c("ATF2", "JNK",	"HSP27",	"p38",	"ERK",	"MEK1",	"MSK1",	"STAT1",	"cJun") 
+times <- c("0", "3", "6", "12", "24")
+col.order <- character()
+for(i in proteins.mapk){
+  for(j in times){
+    col.order <- col.order %>% append(paste(i, j, sep = "_"))
+  }
+}
+
+
+# fiddle with 0h time point data so that it can be joined with the rest of the data
+data.mapk.0h <- data.mapk.avg %>% filter(time ==0)
+data.mapk.0h <- data.mapk.0h %>% rbind(data.mapk.0h) %>% rbind(data.mapk.0h)
+num.row.mapk <- nrow(data.mapk.0h)
+data.mapk.0h[1:(num.row.mapk/3),]$Drug <- "DMSO"
+data.mapk.0h[(num.row.mapk/3+1):(2*num.row.mapk/3),]$Drug <- "TMZ"
+data.mapk.0h[(2*num.row.mapk/3+1):num.row.mapk,]$Drug <- "CARB"
+
+# join 0h time point data wiht the rest
+data.mapk.f <- data.mapk.0h %>% 
+  rbind(data.mapk.avg %>% filter(time>0))
+
+# make data frame that will become X matrix
+data.wide <- data.mapk.f %>% 
+  dplyr::select(-stdev) %>% 
+  pivot_wider(names_from = c(protein, time), values_from = avg) %>% 
+  mutate(treat = paste(Pretreat, "+", Drug)) %>% 
+  dplyr::select(-c(Pretreat, Drug)) %>% 
+  slice(match(sample_order, treat)) %>% 
+  column_to_rownames(var = "treat") 
+
+
+data.wide[,3:ncol(data.wide)] %>%
+  .[,col.order] %>%
+  .[sample_order,] %>%
+  data.matrix() %>%
+  scale(T,T) %>%
+  pheatmap(cluster_cols = F, cluster_rows = F)
+
+data_all <- data_all %>% cbind(data.wide[,3:ncol(data.wide)] %>% 
+                                 .[,col.order] %>% 
+                                 .[sample_order,])
+
+data.mapk.avg$Pretreat <- data.mapk.avg$Pretreat %>% factor(c("NP", "TGFb", "TNFa", "Hypoxia"))
+data.mapk.avg$Drug <- data.mapk.avg$Drug %>% factor(c("--", "DMSO", "TMZ", "CARB"))
+
+for(i in proteins.mapk){
+  # barplots
+  print(
+    ggbarplot(data = data.mapk, x = "sample", y = i, add = "mean_se") + 
+      # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+      scale_y_continuous(expand = c(0,0))+
+      labs(x = element_blank())+
+      coord_flip()+scale_x_discrete(limits = rev)
+  )
+  # ggsave(filename = paste("luminex plots/", i, ".png", sep=""), height = 8, width = 6)
+  
+  # time plots
+  print(
+    data.mapk.avg %>% 
+      filter(protein == i) %>% 
+      ggplot(aes(x = time, y = avg, color = Drug))+
+      geom_line(size = 1)+
+      geom_errorbar(aes(ymax = avg+stdev, ymin = avg-stdev), width = 0.2)+
+      geom_point()+
+      labs(y = i, x = "Time (hours)")+
+      theme_cowplot()+
+      
+      facet_wrap(vars(Pretreat), nrow = 1, ncol = 4)
+  )
+  # ggsave(filename = paste("luminex plots/", i, "_time", ".png", sep=""), height = 4, width = 12)
+  
+}
+```
+
+# luminex - Akt/mTOR
+
+```{r}
+# import luminex data - Akt/mTOR kit
+sample.info <- read_excel("08-22 U87L lysate generation plan.xlsx", sheet = "lysates")
+data.akt.import <- read_excel("09-01-22 Akt results.xlsx", sheet = "-blank")
+
+# clean up luminex data
+data.akt <- data.akt.import
+data.akt$Sample <- data.akt$Sample %>% gsub("Unknown", "", .) %>% as.numeric()
+
+# annotate data with sample info
+data.akt <- left_join(sample.info, data.akt, by = c("number" = "Sample")) %>% 
+  mutate(sample = paste(Pretreat, Drug, time, "h"))#, treat = paste(Pretreat, Drug))
+colnames(data.akt) <- colnames(data.akt) %>% 
+  sub("Akt", "AKT", .) %>% 
+  sub("GSK3b", "GSK3\u03B2", .) %>% 
+  sub("GSK3a", "GSK3\u03B1", .)
+
+# calculate averages 
+data.akt.avg <- data.akt %>%
+  pivot_longer(cols = -c("sample", "Location", "number", "Pretreat", "Drug", "time", "rep"), 
+               names_to = "protein", values_to = "signal") %>%
+  group_by(time, Pretreat, Drug, protein) %>%
+  summarise(avg = mean(signal), stdev = sd(signal))
+
+proteins.akt <- c("GSK3\u03B2",	"IGF1R",	"IRS1",	"AKT",	"mTOR",	"p70S6K",	"IR",	"PTEN",	"GSK3\u03B1",	"TSC2",	"RPS6")
+times <- c("0", "3", "6", "12", "24")
+col.order <- character()
+for(i in proteins.akt){
+  for(j in times){
+    col.order <- col.order %>% append(paste(i, j, sep = "_"))
+  }
+}
+
+
+# fiddle with 0h time point data so that it can be joined with the rest of the data
+data.akt.0h <- data.akt.avg %>% filter(time == 0)
+data.akt.0h <- data.akt.0h %>% rbind(data.akt.0h) %>% rbind(data.akt.0h)
+num.row.akt <- nrow(data.akt.0h)
+data.akt.0h[1:(num.row.akt/3),]$Drug <- "DMSO"
+data.akt.0h[(num.row.akt/3+1):(2*num.row.akt/3),]$Drug <- "TMZ"
+data.akt.0h[(2*num.row.akt/3+1):num.row.akt,]$Drug <- "CARB"
+
+# join 0h time point data wiht the rest
+data.akt.f <- data.akt.0h %>% 
+  rbind(data.akt.avg %>% filter(time>0))
+
+# make data frame that will become X matrix
+data.wide <- data.akt.f %>% 
+  dplyr::select(-stdev) %>% 
+  pivot_wider(names_from = c(protein, time), values_from = avg) %>% 
+  mutate(treat = paste(Pretreat, "+", Drug)) %>% 
+  dplyr::select(-c(Pretreat, Drug)) %>% 
+  slice(match(sample_order, treat)) %>% 
+  column_to_rownames(var = "treat") 
+
+
+data.wide[,3:ncol(data.wide)] %>%
+  .[,col.order] %>%
+  .[sample_order,] %>%
+  scale(T,T) %>%
+  pheatmap(cluster_cols = F, cluster_rows = F)
+
+data_all <- data_all %>% cbind(data.wide[,3:ncol(data.wide)] %>% 
+                                 .[,col.order] %>% 
+                                 .[sample_order,])
+
+data.akt.avg$Pretreat <- data.akt.avg$Pretreat %>% factor(c("NP", "TGFb", "TNFa", "Hypoxia"))
+data.akt.avg$Drug <- data.akt.avg$Drug %>% factor(c("--", "DMSO", "TMZ", "CARB"))
+
+for(i in proteins.akt){
+  # barplots
+  print(
+    ggbarplot(data = data.akt, x = "sample", y = i, add = "mean_se") + 
+      # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+      scale_y_continuous(expand = c(0,0))+
+      labs(x = element_blank())+
+      coord_flip()+scale_x_discrete(limits = rev)
+  )
+  # ggsave(filename = paste("luminex plots/", i, ".png", sep=""), height = 8, width = 6)
+  
+  # time plots
+  print(
+    data.akt.avg %>% 
+      filter(protein == i) %>% 
+      ggplot(aes(x = time, y = avg, color = Drug))+
+      geom_line(size = 1)+
+      geom_errorbar(aes(ymax = avg+stdev, ymin = avg-stdev), width = 0.2)+
+      geom_point()+
+      labs(y = i, x = "Time (hours)")+
+      theme_cowplot()+
+      
+      facet_wrap(vars(Pretreat), nrow = 1, ncol = 4)
+  )
+  # ggsave(filename = paste("luminex plots/", i, "_time", ".png", sep=""), height = 4, width = 12)
+  
+}
+```
+
+# luminex - NF-kB
+
+```{r}
+# import luminex data - nfkb kit
+sample.info <- read_excel("08-22 U87L lysate generation plan.xlsx", sheet = "lysates")
+data.nfkb.import <- read_excel("09-02-22 NFkB results.xlsx", sheet = "-blank")
+
+# clean up luminex data
+data.nfkb <- data.nfkb.import
+data.nfkb$Sample <- data.nfkb$Sample %>% gsub("Unknown", "", .) %>% as.numeric()
+
+# annotate data with sample info
+data.nfkb <- left_join(sample.info, data.nfkb, by = c("number" = "Sample")) %>% 
+  mutate(sample = paste(Pretreat, Drug, time, "h"))#, treat = paste(Pretreat, Drug))
+colnames(data.nfkb) <- colnames(data.nfkb) %>% 
+  sub("NFkB", "NF-\u03BAB", .) %>% 
+  sub("cMyc", "MYC", .) %>% 
+  sub("IkBa", "I\u03BAB\u03B1", .)
+  
+
+# calculate averages 
+data.nfkb.avg <- data.nfkb %>%
+  pivot_longer(cols = -c("sample", "Location", "number", "Pretreat", "Drug", "time", "rep"), 
+               names_to = "protein", values_to = "signal") %>%
+  group_by(time, Pretreat, Drug, protein) %>%
+  summarise(avg = mean(signal), stdev = sd(signal))
+
+proteins.nfkb <- c("NF-\u03BAB", "TNFR1", "MYC", "FADD", "IKKab", "I\u03BAB\u03B1")
+times <- c("0", "3", "6", "12", "24")
+col.order <- character()
+for(i in proteins.nfkb){
+  for(j in times){
+    col.order <- col.order %>% append(paste(i, j, sep = "_"))
+  }
+}
+
+
+# fiddle with 0h time point data so that it can be joined with the rest of the data
+data.nfkb.0h <- data.nfkb.avg %>% filter(time == 0)
+data.nfkb.0h <- data.nfkb.0h %>% rbind(data.nfkb.0h) %>% rbind(data.nfkb.0h)
+num.row.nfkb <- nrow(data.nfkb.0h)
+data.nfkb.0h[1:(num.row.nfkb/3),]$Drug <- "DMSO"
+data.nfkb.0h[(num.row.nfkb/3+1):(2*num.row.nfkb/3),]$Drug <- "TMZ"
+data.nfkb.0h[(2*num.row.nfkb/3+1):num.row.nfkb,]$Drug <- "CARB"
+
+# join 0h time point data with the rest
+data.nfkb.f <- data.nfkb.0h %>% 
+  rbind(data.nfkb.avg %>% filter(time>0))
+
+# make data frame that will become X matrix
+data.wide <- data.nfkb.f %>% 
+  dplyr::select(-stdev) %>% 
+  pivot_wider(names_from = c(protein, time), values_from = avg) %>% 
+  mutate(treat = paste(Pretreat, "+", Drug)) %>% 
+  dplyr::select(-c(Pretreat, Drug)) %>% 
+  slice(match(sample_order, treat)) %>% 
+  column_to_rownames(var = "treat") 
+
+
+data.wide[,3:ncol(data.wide)] %>%
+  .[,col.order] %>%
+  .[sample_order,] %>%
+  scale(T,T) %>%
+  pheatmap(cluster_cols = F, cluster_rows = F)
+
+data_all <- data_all %>% cbind(data.wide[,3:ncol(data.wide)] %>% 
+                                 .[,col.order] %>% 
+                                 .[sample_order,])
+
+data.nfkb.avg$Pretreat <- data.nfkb.avg$Pretreat %>% factor(c("NP", "TGFb", "TNFa", "Hypoxia"))
+data.nfkb.avg$Drug <- data.nfkb.avg$Drug %>% factor(c("--", "DMSO", "TMZ", "CARB"))
+
+# for(i in proteins.nfkb){
+#   # barplots
+#   print(
+#     ggbarplot(data = data.nfkb, x = "sample", y = i, add = "mean_se") + 
+#       # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+#       scale_y_continuous(expand = c(0,0))+
+#       labs(x = element_blank())+
+#       coord_flip()+scale_x_discrete(limits = rev)
+#   )
+#   # ggsave(filename = paste("luminex plots/", i, ".png", sep=""), height = 8, width = 6)
+#   
+#   # time plots
+#   print(
+#     data.nfkb.avg %>% 
+#       filter(protein == i) %>% 
+#       ggplot(aes(x = time, y = avg, color = Drug))+
+#       geom_line(size = 1)+
+#       geom_errorbar(aes(ymax = avg+stdev, ymin = avg-stdev), width = 0.2)+
+#       geom_point()+
+#       labs(y = i, x = "Time (hours)")+
+#       theme_cowplot()+
+#       
+#       facet_wrap(vars(Pretreat), nrow = 1, ncol = 4)
+#   )
+#   # ggsave(filename = paste("luminex plots/", i, "_time", ".png", sep=""), height = 4, width = 12)
+#   
+# }
+# 
+# colnames(data_all) <- colnames(data_all) %>% 
+#   gsub("cMyc", "MYC", .) %>% 
+#   gsub("Chk1", "CHK1", .) %>% 
+#   gsub("Chk2", "CHK2", .) %>% 
+#   gsub("Akt", "AKT", .) %>% 
+#   gsub("GSK3b", "GSK3\u03B2", .) %>% 
+#   gsub("GSK3a", "GSK3\u03B1", .) %>% 
+#   gsub("IkBa", "I\u03BAB\u03B1", .) %>% 
+#   gsub("NFkB", "NF-\u03BAB", .)
+```
+
+#plotting Lum data grouped by drug
+```{r fig.width=8, fig.height=2.5}
+data.all.avg <- rbind(data.dna.f, data.mapk.f) %>% rbind(data.akt.f) %>% rbind(data.nfkb.f)
+data.all.avg$Pretreat <- data.all.avg$Pretreat %>% factor(c("NP", "TGFb", "TNFa", "Hypoxia"))
+data.all.avg$Drug <- data.all.avg$Drug %>% factor(c("--", "DMSO", "TMZ", "CARB"))
+# data.all.avg <- data.all.avg %>% mutate(protein_label = protein)
+# data.all.avg$protein_label <- data.all.avg$protein_label %>% 
+#   gsub("cMyc", "MYC", .) %>% 
+#   gsub("Chk1", "CHK1", .) %>% 
+#   gsub("Chk2", "CHK2", .) %>% 
+#   gsub("Akt", "AKT", .) %>% 
+#   gsub("GSK3b", "GSK3\u03B2", .) %>% 
+#   gsub("GSK3a", "GSK3\u03B1", .) %>% 
+#   gsub("IkBa", "I\u03BAB\u03B1", .) %>% 
+#   gsub("NFkB", "NF-\u03BAB", .)
+  
+
+
+proteins.all <- data.all.avg %>% ungroup() %>% distinct(protein) %>% pull(protein)
+
+# time plots, organized by drug, rather than pretreatment
+for(i in proteins.all){
+  print(
+    data.all.avg %>% 
+      filter(protein == i) %>% 
+      ggplot(aes(x = time, y = avg, color = Pretreat))+
+      geom_line(size = 0.5)+
+      geom_errorbar(aes(ymax = avg+stdev, ymin = avg-stdev), width = 1)+
+      geom_point(size = 0.5)+
+      labs(y = i, x = "Time (hours)")+
+      theme_cowplot(8)+
+      theme(legend.position = "top")+
+      facet_wrap(vars(Drug))+
+      scale_color_okabe_ito(order = c(9, 5, 6, 3))
+  )
+  ggsave(filename = paste("luminex plots/", i, "_by_drug", ".png", sep=""), height = 2, width = 4)
+  ggsave(filename = paste("luminex plots/", i, "_by_drug", ".svg", sep=""), height = 2, width = 4)
+  
+}
+
+
+#plotting p53 data for DMSO vs TMZ
+data.all.avg %>% 
+      filter(protein == "p53") %>% 
+      ggplot(aes(x = time, y = avg, color = Pretreat))+
+      geom_line(size = 1)+
+      geom_errorbar(aes(ymax = avg+stdev, ymin = avg-stdev), width = 0.2)+
+      geom_point()+
+      labs(y = "p53", x = "Time (hours)")+
+      theme_cowplot()+
+      facet_wrap(vars(Drug), scales = "free_y")
+
+#export spreadsheet of Luminex values
+d1 <- full_join(data.dna, data.mapk) %>% full_join(data.akt) %>% full_join(data.nfkb) %>% 
+  dplyr::select(-c(Location, sample, rep, number))
+write.csv(d1, file = "../Chemoresistance manuscript/figure export/luminex_data.csv")
+```
+
+##area graphs
+```{r fig.width=8, fig.height=10}
+library(lemon)
+#plotting area graphs for each protein and treatment
+data.area <- data.all.avg %>% filter(protein %!in% c("STAT1", "MSK1", "H2AX", "HSP27", "IR", "IKKab")) %>% 
+  mutate(treat = paste(Pretreat, Drug, sep="+"))
+data.area$treat <- data.area$treat %>% factor(c("NP+DMSO", "TGFb+DMSO", "TNFa+DMSO", "Hypoxia+DMSO", "NP+TMZ", "TGFb+TMZ", "TNFa+TMZ", "Hypoxia+TMZ", "NP+CARB", "TGFb+CARB", "TNFa+CARB", "Hypoxia+CARB"))
+data.area <- data.area %>% group_by(protein) %>% 
+  mutate(avg_norm = avg/max(avg)*100) %>% 
+  ungroup()
+
+data.area$avg_norm <- data.area$avg_norm %>% lapply(function(x) ifelse(x<0, 0, x)) %>% as.numeric()
+
+data.area <- data.area %>% group_by(protein, treat) %>% 
+    mutate(trend = case_when(
+    avg_norm[time == 24] > avg_norm[time == 0]+10 ~ "Increase",
+    avg_norm[time == 24] < avg_norm[time == 0]-10 ~ "Decrease",
+    T ~ "No change"
+  ))
+
+data.area %>% 
+  ggplot(aes(x = time, y = avg_norm, fill = trend))+
+  geom_area()+
+  scale_y_continuous(limits = c(0,100), expand = c(0,5), breaks = c(0,50,100))+
+  scale_x_continuous(limits = c(0,24), expand = c(0,1), breaks = c(0,3,6,12,24))+
+  facet_grid(protein ~ treat)+
+  # facet_rep_grid(protein~treat)+
+  theme_cowplot(7, line_size = 0.2)+
+  labs(x = "Time (hours)", y = "Average (% max)")+
+  scale_fill_manual(values = c("darkblue", "darkred", "#444444"))+
+  theme(panel.background = element_rect(color = "#000000", linewidth = 0.5), legend.position = "none")
+ggsave("luminex plots/area_plot.svg", height = 10, width = 8, units = "in")
+```
+
+# PLSR
+
+```{r}
+library(pls)
+library(plsVarSel)
+library(ggrepel)
+library(ggokabeito)
+
+rows.dmso <- c(1, 4, 7, 10)
+rows.tmz <- c(2,5,8,11)
+rows.carb <- c(3,6,9,12)
+
+rows.keep <- c(rows.dmso, rows.tmz, rows.carb) %>% sort()
+# rows.keep <- c(1:9)
+
+#analytes to omit:
+omit.analytes <- c("STAT1_", "MSK1_", "H2AX_", "HSP27_", "IR_", "IKKab_") # omitting these analytes because of low/negative signal
+
+##PLSR
+x.mat <- data_all %>%
+  .[rows.keep,] %>% 
+  select(-contains(omit.analytes)) %>% 
+  # select(to.plot) %>% 
+  apply(2, function(x) ifelse(x<0, 0, x)) %>% 
+  scale(T, T) %>% 
+  as.matrix()
+
+y.mat <- pheno.mat %>% .[rows.keep,]
+
+pheatmap(x.mat, cluster_rows = T, cluster_cols = T, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA)
+
+mydata <- data.frame(Y=I(y.mat),X=I(x.mat))
+pls1 <- plsr(Y~X, scale=F, data=mydata, validation = "LOO", method="kernelpls") # generate PLSR model
+
+sc <- scores(pls1)
+ld <- loadings(pls1)
+Ysc <-Yscores(pls1)
+Yld <- Yloadings(pls1)
+
+m1.ld <- ld[,]
+m1.yld <- Yld[,]
+
+write.csv(m1.ld, file = "../Chemoresistance manuscript/figure export/PLSR_loadings.csv")
+
+# plot biplot of scores and loadings - full model
+## LV1 vs LV2
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,2], alpha=0.5), size = 1)+
+  geom_label_repel(aes(x=Yld[,1], y=Yld[,2]), color="darkred", label = "Cell death", size = 8/.pt)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="darkred", shape = "triangle")+
+  labs(x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,2]),
+                  label=rownames(ld),
+                  color="#222222",
+                  max.overlaps = Inf,
+                  size = 6/.pt,
+                  force_pull = 10,
+                  force = 0.1)+
+  theme_cowplot(font_size = 8, line_size = 0.2) +
+  theme(
+    panel.background = element_rect(color = "#000000", size = 0.75),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("PLSR_full LV1 vs LV2.png", width = 8, height = 5)
+ggsave("../Chemoresistance manuscript/figure export/PLSR_full_loadings.svg", width = 4, height = 4, units = "in")
+
+## LV1 vs LV3
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,3], alpha=0.5))+
+  #  geom_point(aes(x=Yld[,1], y=Yld[,3], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), color="blue", label = "Cell Death")+
+  labs(title="", 
+       x="LV1", 
+       y="LV3")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,3]), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+ggsave("PLSR_full LV1 vs LV3.png", width = 8, height = 5)
+
+
+## symbolic plot
+
+
+m1.ld.1 <- m1.ld %>% data.frame() %>% 
+  mutate(analyte = rownames(.)) %>% 
+  mutate(protein = gsub("_[0-9]{1,}", "", analyte)) %>% 
+  mutate(kit = case_when(
+    protein %in% proteins.dna ~ "DNA damage",
+    protein %in% proteins.akt ~ "AKT/mTOR",
+    protein %in% proteins.mapk ~ "MAPK",
+    protein %in% proteins.nfkb ~ "NF-\u03BAB"
+  ))
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.ld.1, aes(x=Comp.1, y=Comp.2, color = kit, shape = kit), size = 1)+
+  scale_color_okabe_ito(order = c(2, 3, 5, 6))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="black", label = "Cell Death", size = 7/.pt)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="black", size = 1, shape = "diamond")+
+  labs(title="", 
+       x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+# ggsave("../Chemoresistance manuscript/figure export/PLSR_loadings_by_kit.svg", width = 2.5, height = 2.8, units = "in")
+
+
+# plot R2X, R2Y, Q2Y
+pls1res <- rq_func(pls1)
+R2X <- pls1res$R2X; R2X_cum <- pls1res$R2X.cum
+R2Y <- pls1res$R2Y; R2Y_cum <- pls1res$R2Y.cum
+Q2Y_cum <- pls1res$Q2Y.cum 
+rq2_cum <- cbind(R2X_cum,R2Y_cum,Q2Y_cum); colnames(rq2_cum) <- c("R2X","R2Y","Q2Y")
+# comp <- which.max(Q2Y_cum) # number of components for best predictive power (based on Q2Y)
+comp <- 2 # make sure VIP calc is using 2 LVs
+R2X_cum[comp]
+R2Y_cum[comp]
+Q2Y_cum[comp]
+
+#dot plot
+rq2_cum %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_cum))) %>% 
+  ggplot(aes(ncomp, value, fill=name, color=name, shape=name)) +
+  #    geom_vline(xintercept = comp, linetype="dashed") + 
+  geom_point(size=3) + #geom_line(size=1) +
+  theme_cowplot(18) + scale_x_continuous(n.breaks=10) +
+  labs(x="# LVs", y="% var. expl.", color="Metric", shape="Metric", fill="Metric")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  scale_y_continuous(limits = c(0,100))
+# ggsave("model_metrics_full.png", width = 5, height = 5)
+
+#bar plot
+rq2_cum %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_cum))) %>% 
+  ggplot(aes(ncomp, value, fill=name)) +
+  geom_bar(stat = "identity")+
+  theme_cowplot(8) + scale_x_continuous(n.breaks=5) +
+  # theme(panel.background = element_rect(color = "#000000"))+
+  scale_fill_okabe_ito(order = c(6,5,3))+
+  scale_x_continuous(limits = c(0.5,5.5))+
+  scale_y_continuous(limits = c(0,100), expand = c(0,0))+
+  facet_wrap(~name)+
+  labs(x = "Number of components", y = "Model fit coefficient")+
+  theme(legend.position = "none")
+ggsave("model_metrics_barplot.svg", width = 2, height = 2, units = "in")
+# ggsave("../Chemoresistance manuscript/figure export/model_metrics_barplot.svg", width = 2, height = 2, units = "in")
+
+# x-matrix heatmap
+pheatmap(x.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA, filename = "x_matrix_full_heatmap.png", width = ncol(x.mat)/5, height = nrow(x.mat)/2)
+
+pheatmap(x.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA, filename = "../Chemoresistance manuscript/figure export/x_matrix_full_heatmap.pdf", width = ncol(x.mat)/5, height = nrow(x.mat)/2)
+
+paste("Max x: ", max(x.mat))
+paste("Min x: ", min(x.mat))
+
+# y-matrix heatmap
+pheatmap(y.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100), filename = "y_matrix_full_heatmap.png", width = 1, height = nrow(x.mat)/2)
+
+pheatmap(y.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA, filename = "../Chemoresistance manuscript/figure export/y_matrix_full_heatmap.pdf", width = 1, height = nrow(x.mat)/2)
+
+paste("Max y: ", max(y.mat))
+paste("Min y: ", min(y.mat))
+
+#VIP score calculations
+vip.scores <- VIP(pls1, opt.comp = comp) %>% as.data.frame()
+colnames(vip.scores) <- "score"
+vip.scores <- vip.scores %>% rownames_to_column("analyte")
+vip.ld <- vip.scores %>% mutate("PC1" = ld[,1])
+
+
+#plot Latent Variable1 values vs VIP score
+ggplot(vip.ld, aes(x = PC1, y = score, label = analyte))+
+  geom_point(alpha = 0.5)+
+  geom_text_repel(data = subset(vip.ld, score>1), size = 7/.pt, max.overlaps = Inf)+
+  theme_cowplot(8) + 
+  labs(x="LV1", y="VIP score")+
+  theme1+
+  scale_y_continuous(expand = expansion(mult=c(0.05, 0.15)))+
+  scale_x_continuous(expand = expansion(mult=c(0.1, 0.1)))+
+  geom_hline(yintercept = 1, color = "#333333", linetype = "dashed", alpha = 0.7)
+ggsave("../Chemoresistance manuscript/figure export/PLSR_LV1_vs_VIP.svg", width = 5, height = 3, units = "in")
+# ggsave("vip_vs_pc1_full.png")
+
+
+#plot VIP scores
+vip.scores %>% 
+  #  filter(score>1) %>% 
+  arrange(score) %>% 
+  ggplot(aes(y=reorder(analyte, score), x=score))+
+  geom_bar(stat="identity")+
+  theme_cowplot()+
+  #  geom_hline(yintercept = 1, linetype = "dashed")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  labs(x = "VIP score", y = element_blank())
+ggsave("VIP_full.png", width = 5, height = 12)
+
+
+## scores matrix
+sc.dat <- sc[,1:2] %>% 
+  data.frame %>% 
+  rownames_to_column(var = "sample") %>% 
+  mutate(pretreat = case_when(
+    grepl("NP", sample) ~ "NP",
+    grepl("TGFb", sample) ~ "TGF\u03B2",
+    grepl("TNFa", sample) ~ "TNF\u03B1",
+    grepl("Hypoxia", sample) ~ "Hypoxia",
+    T ~ "WHAT"
+  ), 
+  treat = case_when(
+    grepl("DMSO", sample) ~ "DMSO",
+    grepl("TMZ", sample) ~ "TMZ",
+    grepl("CARB", sample) ~ "CARBO",
+    T ~ "WHAT"
+  ))
+
+pre_ord_form <- c("NP", "TGF\u03B2", "TNF\u03B1", "Hypoxia")
+trt_ord_form <- c("DMSO", "TMZ", "CARBO")
+sc.dat$pretreat <- sc.dat$pretreat %>% factor(pre_ord_form)
+sc.dat$treat <- sc.dat$treat %>% factor(trt_ord_form)
+sc.fact <- 50
+
+## scores and loadings plot:
+
+m1.ld.1 <- left_join(m1.ld.1, vip.scores)
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  # geom_point(data = sc.dat, aes(x=Comp.1, y=Comp.2, alpha = pretreat, shape = treat), size = 3)+
+  geom_text(data = sc.dat, aes(x=Comp.1, y=Comp.2, label = sample), size = 3)+
+  # geom_text_repel(aes(x=sc[,1], y=sc[,2]), color="darkblue", label = rownames(Ysc))+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  geom_point(data = m1.ld.1, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit, size = score/10))+
+  # geom_point(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), alpha=0.5)+
+  geom_text_repel(data = m1.ld.1, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit, size = score/10),
+                  label=m1.ld.1$analyte,
+                  # size=3, 
+                  max.overlaps = 20, max.iter = 10^8)+
+  geom_text_repel(aes(x=Yld[,1]*sc.fact, y=Yld[,2]*sc.fact),
+                  label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000")
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+# scores plot
+ggplot(data = sc.dat, aes(x = Comp.1, y = Comp.2, label = paste(pretreat, treat, sep = "+")))+
+  geom_point(size = 1)+
+  geom_text_repel(size = 7/.pt, force_pull = 10)+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  labs(title="", 
+       x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+# ggsave("../Chemoresistance manuscript/figure export/PLSR_scores.svg", width = 2.5, height = 2.5, units = "in")
+
+
+#selecting high VIP analytes for PLSR round 2
+VIP_cutoff <- 0.8
+analytes.keep <- vip.scores %>% filter(score>VIP_cutoff) %>% .$analyte
+
+
+
+x.mat1 <- x.mat
+y.mat1 <- y.mat
+```
+##plots for publication
+```{r}
+## loadings plot
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.ld.1, aes(x=Comp.1, y=Comp.2, color = kit, shape = kit), size = 1)+
+  scale_color_okabe_ito(order = c(2, 3, 5, 6))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="black", label = "Cell Death", size = 7/.pt)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="black", size = 1, shape = "diamond")+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/PLSR_loadings_by_kit.svg", width = 3, height = 3, units = "in")
+
+# scores plot
+ggplot(data = sc.dat, aes(x = Comp.1, y = Comp.2, label = paste(pretreat, treat, sep = "+")))+
+  geom_point(size = 1)+
+  geom_text_repel(size = 7/.pt, force_pull = 10)+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/PLSR_scores.svg", width = 3, height = 2.8, units = "in")
+
+#model metrics bar plot
+rq2_cum %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_cum))) %>% 
+  ggplot(aes(ncomp, value, fill=name)) +
+  geom_bar(stat = "identity")+
+  theme_cowplot(8) + scale_x_continuous(n.breaks=5) +
+  # theme(panel.background = element_rect(color = "#000000"))+
+  scale_fill_okabe_ito(order = c(6,5,3))+
+  scale_x_continuous(limits = c(0.5,5.5))+
+  scale_y_continuous(limits = c(0,1.05), expand = c(0,0))+
+  facet_wrap(~name)+
+  labs(x = "Number of LVs", y = "Model coefficient")+
+  theme(legend.position = "none")
+ggsave("../Chemoresistance manuscript/figure export/model_metrics_barplot.svg", width = 2, height = 2, units = "in")
+
+#export table of projections and VIP score
+m1.ld.1 <- m1.ld.1 %>% mutate(treat_time = gsub(".*_", "", analyte))
+m1.ld.1$treat_time <- m1.ld.1$treat_time %>% factor(times)
+write.csv(m1.ld.1, file = "../Chemoresistance manuscript/figure export/PLSR_loadings_with_VIP")
+
+#generate plot to show which analytes are retained vs filtered during VIP enrichment
+m1_prots <- m1.ld.1 %>% group_by(protein) %>% 
+  count(`VIP > 0.8` = score>0.8) %>% 
+  mutate()
+
+m1_prots %>% 
+  ggplot(aes(x = protein, y = n, fill = `VIP > 0.8`))+
+  geom_bar(stat = "identity", position = "stack")+
+  scale_y_continuous(limits = c(0,5), expand = c(0,0))+
+  theme_cowplot(7)+
+  labs(x = element_blank(), y = "Number of time points")+
+  scale_fill_okabe_ito(order = c(5, 3))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+ggsave("../Chemoresistance manuscript/figure export/PLSR_VIP_by_protein.svg", width = 4, height = 1.5, units = "in")
+
+#generate plot to show which time points are retained vs filtered during VIP enrichment
+m1_times <- m1.ld.1 %>% group_by(treat_time) %>% 
+  count(`VIP > 0.8` = score>0.8)
+
+m1_times %>% 
+  ggplot(aes(x = treat_time, y = n, fill = `VIP > 0.8`))+
+  geom_bar(stat = "identity", position = "stack")+
+  scale_y_continuous(limits = c(0,27), expand = c(0,0))+
+  theme_cowplot(7)+
+  labs(x = "Treatment time (hr)", y = "Number of proteins")+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("../Chemoresistance manuscript/figure export/PLSR_VIP_by_time.svg", width = 1.5, height = 1.35, units = "in")
+
+#plot of just VIP scores with cutoff marked
+m1.ld.1 %>% 
+  ggplot(aes(x = reorder(analyte, -score), y = score, fill = ifelse(score>0.8, T, F)))+
+  geom_bar(stat = "identity")+
+  geom_hline(yintercept = 0.8, linetype = "dashed", alpha = 0.7, linewidth = 0.3)+
+  theme_cowplot(6)+
+  scale_fill_okabe_ito(order = c(5, 3))+
+  labs(x = element_blank(), y = "VIP score")+
+  scale_y_continuous(expand = expansion(c(0, 0.1)))+
+  theme(legend.position = "none", 
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 5))
+ggsave("../Chemoresistance manuscript/figure export/PLSR_VIP_scores_barplot.svg", width = 8, height = 2, units = "in")
+
+```
+
+
+## VIP-enriched plsr
+
+```{r}
+##PLSR
+x.mat <- x.mat1 %>% 
+  data.frame() %>% 
+  select(analytes.keep) %>% 
+  as.matrix()# %>% scale(T, T)
+y.mat <- y.mat1 %>% 
+  as.matrix()# %>% scale(T, T)
+
+mydata <- data.frame(Y=I(y.mat),X=I(x.mat))
+pls1 <- plsr(Y~X, scale=F, data=mydata, validation = "LOO", method="kernelpls") # generate PLSR model
+
+sc <- scores(pls1)
+ld <- loadings(pls1)
+Ysc <-Yscores(pls1)
+Yld <- Yloadings(pls1)
+
+m2.ld <- ld[,]
+
+#plot biplot of scores and loadings - filtered
+##LV1 vs LV2
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,2], alpha=0.5))+
+  #  geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = rownames(Yld), size = 4)+
+  labs(title="VIP-enriched Model", 
+       x="LV1", 
+       y="LV2")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,2]), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+ggsave("PLSR_filtered LV1 vs LV2.png", width = 8, height = 5)
+
+##LV1 vs LV3
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,3], alpha=0.5))+
+  #  geom_point(aes(x=Yld[,1], y=Yld[,3], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), color="blue", label = "Cell Death")+
+  labs(title="", 
+       x="LV1", 
+       y="LV3")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,3]), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+#plot R2X, R2Y, Q2Y
+pls1res <- rq_func(pls1)
+R2X <- pls1res$R2X; R2X_cum <- pls1res$R2X.cum
+R2Y <- pls1res$R2Y; R2Y_cum <- pls1res$R2Y.cum
+Q2Y_cum <- pls1res$Q2Y.cum 
+rq2_cum <- cbind(R2X_cum,R2Y_cum,Q2Y_cum); colnames(rq2_cum) <- c("R2X","R2Y","Q2Y")
+comp <- which.max(Q2Y_cum) # number of components for best predictive power (based on Q2Y)
+R2X_cum[comp]
+R2Y_cum[comp]
+Q2Y_cum[comp]
+rq2_vip <- rq2_cum
+
+#plot(pls1, ncomp=comp, asp=1, line=T, xlab="Actual", ylab="Predicted", main="Parity plots")
+#plot(pls1res$R2X.cum, ylab="R2X", xlab="# PCs")
+#plot(pls1res$R2Y.cum, ylab="R2Y", xlab="# PCs")
+#plot(pls1res$Q2Y.cum, ylab="Q2Y", xlab="# PCs")
+#matplot(rq2_cum, pch=c("X","Y","Q"), cex=1, col=c("red","blue","green"), ylab="% var. expl.", xlab="# PCs")
+rq2_cum %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_cum))) %>% 
+  ggplot(aes(ncomp, value, fill=name, color=name, shape=name)) +
+  #    geom_vline(xintercept = comp, linetype="dashed") + 
+  geom_point(size=3) + #geom_line(size=1) +
+  theme_cowplot(18) + scale_x_continuous(n.breaks=10) +
+  labs(x="# LVs", y="% var. expl.", color="Metric", shape="Metric", fill="Metric")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  scale_y_continuous(limits = c(0,100))
+ggsave("model_metrics_filtered.png", width = 5, height = 5)
+
+# x-matrix heatmap
+pheatmap(x.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA)
+
+# y-matrix heatmap
+pheatmap(y.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100))
+
+#VIP score calculations
+vip.scores <- VIP(pls1, opt.comp = comp) %>% as.data.frame()
+colnames(vip.scores) <- "score"
+vip.scores <- vip.scores %>% rownames_to_column("analyte")
+
+#plot VIP scores
+vip.scores %>% 
+  #  filter(score>1) %>% 
+  arrange(score) %>% 
+  ggplot(aes(y=reorder(analyte, score), x=score))+
+  geom_bar(stat="identity")+
+  theme_cowplot()+
+  #  geom_hline(yintercept = 1, linetype = "dashed")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  labs(x = "VIP score", y = element_blank())
+
+sc.dat <- sc[,1:2] %>% 
+  data.frame %>% 
+  rownames_to_column(var = "sample") %>% 
+  mutate(pretreat = case_when(
+    grepl("NP", sample) ~ "NP",
+    grepl("TGFb", sample) ~ "TGF\u03B2",
+    grepl("TNFa", sample) ~ "TNF\u03B1",
+    grepl("Hypoxia", sample) ~ "Hypoxia",
+    T ~ "WHAT"
+  ), 
+  treat = case_when(
+    grepl("DMSO", sample) ~ "DMSO",
+    grepl("TMZ", sample) ~ "TMZ",
+    grepl("CARB", sample) ~ "CARBO",
+    T ~ "WHAT"
+  ))
+
+sc.dat$pretreat <- sc.dat$pretreat %>% factor(pre_ord_form)
+sc.dat$treat <- sc.dat$treat %>% factor(trt_ord_form)
+sc.fact <- 30
+
+## scores and loadings plot:
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = sc.dat, aes(x=Comp.1, y=Comp.2, color = pretreat, shape = treat), size = 3)+
+  # geom_text_repel(aes(x=sc[,1], y=sc[,2]), color="darkblue", label = rownames(Ysc))+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  geom_point(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), alpha=0.5)+
+  geom_text_repel(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000")
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+## other scores and loadings plot
+
+m2.ld <- ld[,] %>% data.frame() %>% 
+  mutate(analyte = rownames(.)) %>% 
+  mutate(protein = gsub("_[0-9]{1,}", "", analyte)) %>% 
+  mutate(kit = case_when(
+    protein %in% proteins.dna ~ "DNA damage",
+    protein %in% proteins.akt ~ "Akt/mTOR",
+    protein %in% proteins.mapk ~ "MAPK",
+    protein %in% proteins.nfkb ~ "NF-kB"
+  ))
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  # geom_point(data = sc.dat, aes(x=Comp.1, y=Comp.2, alpha = pretreat, shape = treat), size = 3)+
+  geom_text(data = sc.dat, aes(x=Comp.1, y=Comp.2, label = sample), size = 3)+
+  # geom_text_repel(aes(x=sc[,1], y=sc[,2]), color="darkblue", label = rownames(Ysc))+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  geom_point(data = m2.ld, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit), size = 2)+
+  # geom_point(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), alpha=0.5)+
+  geom_text_repel(data = m2.ld, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit),
+                  label=rownames(m2.ld),
+                  size=3, max.overlaps = 20, max.iter = 10^8)+
+  geom_text_repel(aes(x=Yld[,1]*sc.fact, y=Yld[,2]*sc.fact),
+                  label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000")
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+
+vip.ld <- vip.scores %>% mutate("PC1" = ld[,1])
+
+
+#plot PC1 values vs VIP score
+vip.ld %>% 
+  ggplot(aes(x = PC1, y = score, label = analyte))+
+  geom_point(size = 2, alpha = 0.5)+
+  geom_text_repel()+
+  theme_cowplot(18) + 
+  labs(x="LV1", y="VIP score")+
+  theme(panel.background = element_rect(color = "#000000"))
+ggsave("vip_vs_LV1_filtered.png")
+
+```
+###plots for publication
+```{r}
+#loadings plot - all analytes
+m2.ld <- ld[,] %>% data.frame() %>% 
+  mutate(analyte = rownames(.)) %>% 
+  mutate(protein = gsub("_[0-9]{1,}", "", analyte)) %>% 
+  mutate(kit = case_when(
+    protein %in% proteins.dna ~ "DNA damage",
+    protein %in% proteins.akt ~ "AKT/mTOR",
+    protein %in% proteins.mapk ~ "MAPK",
+    protein %in% proteins.nfkb ~ "NF-\u03BAB"
+  ))
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m2.ld, aes(x=Comp.1, y=Comp.2, color = kit, shape = kit), size = 1)+
+  scale_color_okabe_ito(order = c(2, 3, 5, 6))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="black", label = "Cell Death", size = 7/.pt)+
+  geom_text_repel(data = m2.ld, aes(x = Comp.1, y = Comp.2, label = analyte, color = kit, segment.size = 0.3), 
+                  size = 6/.pt, force_pull = 1, max.overlaps = Inf, max.iter = 10^9, box.padding = 0.05)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="black", size = 2, shape = "diamond")+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/PLSR-VIP_loadings.svg", width = 3, height = 3, units = "in")
+
+# scores plot
+ggplot(data = sc.dat, aes(x = Comp.1, y = Comp.2, label = paste(pretreat, treat, sep = "+")))+
+  geom_point(size = 1)+
+  geom_text_repel(size = 7/.pt, force_pull = 10)+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/PLSR_VIP_scores.svg", width = 3, height = 2.8, units = "in")
+
+#model metrics bar plot
+rq2_vip %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_vip))) %>% 
+  ggplot(aes(ncomp, value, fill=name)) +
+  geom_bar(stat = "identity")+
+  theme_cowplot(8) + scale_x_continuous(n.breaks=5) +
+  # theme(panel.background = element_rect(color = "#000000"))+
+  scale_fill_okabe_ito(order = c(6,5,3))+
+  scale_x_continuous(limits = c(0.5,5.5))+
+  scale_y_continuous(limits = c(0,1.05), expand = c(0,0))+
+  facet_wrap(~name)+
+  labs(x = "Number of LVs", y = "Model coefficient")+
+  theme(legend.position = "none")
+# ggsave("model_metrics_VIP_barplot.svg", width = 2, height = 2, units = "in")
+ggsave("../Chemoresistance manuscript/figure export/model_metrics_VIP_barplot.svg", width = 2, height = 2, units = "in")
+```
+
+####extras
+```{r}
+#PTEN plot
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m2.ld, aes(x=Comp.1, y=Comp.2, color = kit, shape = kit), size = 1)+
+  scale_color_okabe_ito(order = c(2, 3, 5, 6))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="black", label = "Cell Death", size = 8/.pt)+
+  geom_text_repel(data = subset(m2.ld, protein == "PTEN"), aes(x = Comp.1, y = Comp.2, label = analyte), size = 8/.pt, min.segment.length = 0)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="black", size = 1, shape = "diamond")+
+  labs(title="", 
+       x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/PLSR-VIP_loadings_PTEN.svg", width = 2.5, height = 2.8, units = "in")
+
+#JNK plot
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m2.ld, aes(x=Comp.1, y=Comp.2, color = kit, shape = kit), size = 1)+
+  scale_color_okabe_ito(order = c(2, 3, 5, 6))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="black", label = "Cell Death", size = 8/.pt)+
+  geom_text_repel(data = subset(m2.ld, protein == "JNK"), aes(x = Comp.1, y = Comp.2, label = analyte), size = 8/.pt, min.segment.length = 0)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="black", size = 1, shape = "diamond")+
+  labs(title="", 
+       x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/PLSR-VIP_loadings_JNK.svg", width = 2.5, height = 2.8, units = "in")
+
+#MYC plot
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m2.ld, aes(x=Comp.1, y=Comp.2, color = kit, shape = kit), size = 1)+
+  scale_color_okabe_ito(order = c(2, 3, 5, 6))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="black", label = "Cell Death", size = 8/.pt)+
+  geom_text_repel(data = subset(m2.ld, protein == "cMyc"), aes(x = Comp.1, y = Comp.2, label = analyte), size = 8/.pt, min.segment.length = 0)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="black", size = 1, shape = "diamond")+
+  labs(title="", 
+       x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/PLSR-VIP_loadings_MYC.svg", width = 2.5, height = 2.8, units = "in")
+ggsave("../Chemoresistance manuscript/figure export/PLSR-VIP_loadings_MYC.png", width = 2.5, height = 2.8, units = "in")
+
+#Chk1 plot
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m2.ld, aes(x=Comp.1, y=Comp.2, color = kit, shape = kit), size = 1)+
+  scale_color_okabe_ito(order = c(2, 3, 5, 6))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="black", label = "Cell Death", size = 8/.pt)+
+  geom_text_repel(data = subset(m2.ld, protein == "Chk1"), aes(x = Comp.1, y = Comp.2, label = analyte), size = 8/.pt, min.segment.length = 0)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="black", size = 1, shape = "diamond")+
+  labs(title="", 
+       x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+# ggsave("../Chemoresistance manuscript/figure export/PLSR-VIP_loadings_Chk1.svg", width = 2.5, height = 2.8, units = "in")
+
+
+#GSK3b plot
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m2.ld, aes(x=Comp.1, y=Comp.2, color = kit, shape = kit), size = 1)+
+  scale_color_okabe_ito(order = c(2, 3, 5, 6))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="black", label = "Cell Death", size = 8/.pt)+
+  geom_text_repel(data = subset(m2.ld, protein == "GSK3a"), aes(x = Comp.1, y = Comp.2, label = analyte), size = 8/.pt, min.segment.length = 0)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="black", size = 1, shape = "diamond")+
+  labs(title="", 
+       x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+# ggsave("../Chemoresistance manuscript/figure export/PLSR-VIP_loadings_Chk1.svg", width = 2.5, height = 2.8, units = "in")
+
+
+```
+
+## pretreat filtering
+
+```{r}
+library(gtools)
+
+run_filter <- F
+# filtering model for only TGFb-dependent signals
+data.sub <- full_join(data.dna, data.mapk) %>% 
+  full_join(data.akt) %>% 
+  full_join(data.nfkb)
+
+data.sub.tgfb <- data.sub %>% filter(Pretreat %in% c("NP", "TGFb"))
+
+all.analytes <- c(proteins.dna, proteins.mapk, proteins.akt, proteins.nfkb)
+times.num <- c(0, 3, 6, 12, 24)
+drugs <- c("--", "DMSO", "TMZ", "CARB")
+fc.table <- data.frame(Time = as.integer(), Drug = as.character(), protein = as.character(), logFC = as.double(), pval = as.double())
+
+if(run_filter){
+  for(t in times.num){
+    for (drg in drugs){
+      for(prt in all.analytes){
+        a1 <- data.sub.tgfb %>% filter(Pretreat == "NP", Drug == drg, time == t, ) %>% dplyr::select(prt)
+        b1 <- data.sub.tgfb %>% filter(Pretreat == "TGFb", Drug == drg, time == t, ) %>% dplyr::select(prt)
+        if(nrow(a1) > 1){
+          t1 <- t.test(a1, b1)
+          
+          d1 <- foldchange(mean(b1[[prt]]), mean(a1[[prt]])) %>% foldchange2logratio(2)
+          
+          fc.table <- fc.table %>% add_row(Time = t, Drug = drg, protein = prt, logFC = d1, pval = t1$p.value)
+        }
+      }
+    }
+  }
+}
+
+# troubleshooting code
+# time1 <- 0
+# drug1 <- "--"
+# prt1 <- "ATF2"
+# 
+# a1 <- data.sub.tgfb %>% filter(Pretreat == "NP", Drug == drug1, time == time1, ) %>% dplyr::select(prt1)
+# a1
+# b1 <- data.sub.tgfb %>% filter(Pretreat == "TGFb", Drug == drug1, time == time1, ) %>% dplyr::select(prt1)
+# b1
+# 
+# t1 <- t.test(a1, b1)
+# d1 <- foldchange(mean(a1[[prt1]]), mean(b1[[prt1]])) %>% foldchange2logratio(2)
+# d1
+
+fc.table.filt <- fc.table %>% filter(abs(logFC)>0.5 & pval < 0.05) %>% 
+  mutate(analyte = paste(protein, Time, sep = "_")) %>% 
+  filter(analyte %in% rownames(m1.ld))
+
+to.plot <- pull(fc.table.filt, analyte) %>% unique()
+analytes.tgfb <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+  geom_text(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = "Cell Death", size = 4)+
+  labs(title="Filtered, TGFb-dependent signals",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt),
+                  color="#222222",
+                  size=3)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]),
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=3, max.overlaps = 10)+
+  # #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  # #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+
+```
+
+```{r}
+# filtering model for only TNFa-dependent signals
+data.sub <- full_join(data.dna, data.mapk) %>% 
+  full_join(data.akt) %>% 
+  full_join(data.nfkb)
+
+data.sub.TNFa <- data.sub %>% filter(Pretreat %in% c("NP", "TNFa"))
+
+all.analytes <- c(proteins.dna, proteins.mapk, proteins.akt, proteins.nfkb)
+times.num <- c(0, 3, 6, 12, 24)
+drugs <- c("--", "DMSO", "TMZ", "CARB")
+fc.table <- data.frame(Time = as.integer(), Drug = as.character(), protein = as.character(), logFC = as.double(), pval = as.double())
+
+if(run_filter){
+  for(t in times.num){
+    for (drg in drugs){
+      for(prt in all.analytes){
+        a1 <- data.sub.TNFa %>% filter(Pretreat == "NP", Drug == drg, time == t, ) %>% dplyr::select(prt)
+        b1 <- data.sub.TNFa %>% filter(Pretreat == "TNFa", Drug == drg, time == t, ) %>% dplyr::select(prt)
+        if(nrow(a1) > 1){
+          t1 <- t.test(a1, b1)
+          
+          d1 <- foldchange(mean(b1[[prt]]), mean(a1[[prt]])) %>% foldchange2logratio(2)
+          
+          fc.table <- fc.table %>% add_row(Time = t, Drug = drg, protein = prt, logFC = d1, pval = t1$p.value)
+        }
+      }
+    }
+  }
+}
+
+
+fc.table.filt <- fc.table %>% filter(abs(logFC)>0.5 & pval < 0.05) %>% 
+  mutate(analyte = paste(protein, Time, sep = "_")) %>% 
+  filter(analyte %in% rownames(m1.ld))
+
+to.plot <- pull(fc.table.filt, analyte) %>% unique()
+analytes.tnfa <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+  geom_text(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = "Cell Death", size = 4)+
+  labs(title="Filtered, TNFa-dependent signals",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt),
+                  color="#222222",
+                  size=3)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]), #these lines are here just to get the spacing the same as the full model
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=3, max.overlaps = 10)+
+  # #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  # #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+
+```
+
+```{r}
+
+# filtering model for only hypoxia-dependent signals
+data.sub <- full_join(data.dna, data.mapk) %>% 
+  full_join(data.akt) %>% 
+  full_join(data.nfkb)
+
+data.sub.hyp <- data.sub %>% filter(Pretreat %in% c("NP", "Hypoxia"))
+
+all.analytes <- c(proteins.dna, proteins.mapk, proteins.akt, proteins.nfkb)
+times.num <- c(0, 3, 6, 12, 24)
+drugs <- c("--", "DMSO", "TMZ", "CARB")
+fc.table <- data.frame(Time = as.integer(), Drug = as.character(), protein = as.character(), logFC = as.double(), pval = as.double())
+
+if(run_filter){
+  for(t in times.num){
+    for (drg in drugs){
+      for(prt in all.analytes){
+        a1 <- data.sub.hyp %>% filter(Pretreat == "NP", Drug == drg, time == t, ) %>% dplyr::select(prt)
+        b1 <- data.sub.hyp %>% filter(Pretreat == "Hypoxia", Drug == drg, time == t, ) %>% dplyr::select(prt)
+        if(nrow(a1) > 1){
+          t1 <- t.test(a1, b1)
+          
+          d1 <- foldchange(mean(b1[[prt]]), mean(a1[[prt]])) %>% foldchange2logratio(2)
+          
+          fc.table <- fc.table %>% add_row(Time = t, Drug = drg, protein = prt, logFC = d1, pval = t1$p.value)
+        }
+      }
+    }
+  }
+}
+
+
+fc.table.filt <- fc.table %>% filter(abs(logFC)>0.5 & pval < 0.05) %>% 
+  mutate(analyte = paste(protein, Time, sep = "_")) %>% 
+  filter(analyte %in% rownames(m1.ld))
+
+to.plot <- pull(fc.table.filt, analyte) %>% unique()
+analytes.hyp <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+  geom_text(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = "Cell Death", size = 4)+
+  labs(title="Filtered, hypoxia-dependent signals",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt),
+                  color="#222222",
+                  size=3)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]), #these lines are here just to get the spacing the same as the full model
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=3, max.overlaps = 10)+
+  # #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  # #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+
+```
+
+## drug filtering
+###TMZ
+```{r}
+
+run_filter <- T
+
+# filtering model for only TMZ-dependent signals
+data.sub <- full_join(data.dna, data.mapk) %>% 
+  full_join(data.akt) %>% 
+  full_join(data.nfkb)
+
+data.sub.tmz <- data.sub %>% filter(Drug %in% c("DMSO", "TMZ"))
+
+all.analytes <- c(proteins.dna, proteins.mapk, proteins.akt, proteins.nfkb)
+times.num <- c(0, 3, 6, 12, 24)
+prts <- c("NP", "TGFb", "TNFa", "Hypoxia")
+fc.table <- data.frame(Time = as.integer(), Pretreat = as.character(), comparison = as.character(), protein = as.character(), logFC = as.double(), pval = as.double())
+
+# determine for all times and pretreatments, what is the fold change in each protein comparing TMZ vs DMSO:
+if(run_filter){
+  for(t in times.num){
+    for (trt in prts){
+      for(prt in all.analytes){
+        a1 <- data.sub.tmz %>% filter(Drug == "DMSO", Pretreat == trt, time == t, ) %>% dplyr::select(prt)
+        b1 <- data.sub.tmz %>% filter(Drug == "TMZ", Pretreat == trt, time == t, ) %>% dplyr::select(prt)
+        if(nrow(a1) > 1){
+          t1 <- t.test(a1, b1)
+          
+          d1 <- foldchange(mean(b1[[prt]]), mean(a1[[prt]])) %>% foldchange2logratio(2)
+          
+          fc.table <- fc.table %>% add_row(Time = t, Pretreat = trt, comparison = "DMSO vs TMZ", protein = prt, logFC = d1, pval = t1$p.value)
+        }
+      }
+    }
+  }
+}
+
+#Benhamini-Hochberg adjustment for multiple comparisons
+p_adj <- fc.table$pval %>% p.adjust(., method = "BH", n = length(.))
+fc.table$p_adj <- p_adj
+
+write.csv(fc.table, file = "../Chemoresistance manuscript/figure export/fc_calc_tmz.csv")
+
+# if the absolute value of the fold change is >0.5 and the adjusted p-value is < 0.05, retain that protein in the model
+fc.table.filt <- fc.table %>% filter(abs(logFC)>0.5 & pval < 0.05) %>% 
+  mutate(analyte = paste(protein, Time, sep = "_")) %>% 
+  filter(analyte %in% rownames(m1.ld))
+fc.filt.tmz <- fc.table.filt
+
+to.plot <- pull(fc.table.filt, analyte) %>% unique()
+analytes.tmz <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = "Cell Death", size = 8/.pt)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="blue")+
+  labs(title="Temozolomide-dependent signals",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt), 
+                  max.overlaps = Inf,
+                  label.padding = 0.25,
+                  segment.size = 0.3,
+                  color="#222222",
+                  size=7/.pt, min.segment.length = 0)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]), #these lines are here just to get the spacing the same as the full model
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=3, max.overlaps = 10)+
+  # #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  # #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot(7) +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/TMZ-filtered-PLSR.svg", width = 3.5, height = 3.5, units = "in")
+
+```
+
+```{r}
+if(run_filter){
+  
+  # TMZ-filtered model regeneration
+  rows.dmso <- c(1, 4, 7, 10)
+  rows.tmz <- c(2,5,8,11)
+  rows.carb <- c(3,6,9,12)
+  
+  rows.keep <- c(rows.dmso, rows.tmz, rows.carb) %>% sort()
+  # rows.keep <- c(rows.dmso, rows.tmz) %>% sort()
+  
+  
+  x.mat <- data_all %>%
+    .[rows.keep,] %>% 
+    select(analytes.tmz) %>% 
+    # select(to.plot) %>% 
+    apply(2, function(x) ifelse(x<0, 0, x)) %>% 
+    scale(T, T) %>% 
+    as.matrix()
+  
+  y.mat <- pheno.mat %>% .[rows.keep,]
+  
+  pheatmap(x.mat, cluster_rows = T, cluster_cols = T, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA)
+  
+  mydata <- data.frame(Y=I(y.mat),X=I(x.mat))
+  pls1 <- plsr(Y~X, scale=F, data=mydata, validation = "LOO", method="kernelpls") # generate PLSR model
+  
+  sc <- scores(pls1)
+  ld <- loadings(pls1)
+  Ysc <-Yscores(pls1)
+  Yld <- Yloadings(pls1)
+  
+  # plot biplot of scores and loadings - full model
+  ## LV1 vs LV2
+  ggplot()+
+    geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+    geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+    geom_point(aes(x=ld[,1], y=ld[,2], alpha=0.5))+
+    #  geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+    geom_text(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = "Cell Death")+
+    labs(title="", 
+         x="LV1", 
+         y="LV2")+
+    geom_text_repel(aes(x=ld[,1], y=ld[,2]), 
+                    label=rownames(ld),
+                    color="#222222",
+                    size=3, max.overlaps = 10)+
+    #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+    #            label=rownames(Yld), size=3, color="blue")+
+    theme_cowplot() +
+    scale_size(
+      limits=c(0,1),
+    )+
+    theme(
+      panel.background = element_rect(color = "#000000"),
+      legend.position = "none"
+    ) +
+    scale_x_continuous(expand = expansion(mult = 0.1))+
+    scale_y_continuous(expand = expansion(mult = 0.1))
+  
+  # ggsave("PLSR_full LV1 vs LV2.png", width = 8, height = 5)
+  
+  
+  ## plot R2X, R2Y, Q2Y
+  pls1res <- rq_func(pls1)
+  R2X <- pls1res$R2X; R2X_cum <- pls1res$R2X.cum
+  R2Y <- pls1res$R2Y; R2Y_cum <- pls1res$R2Y.cum
+  Q2Y_cum <- pls1res$Q2Y.cum 
+  rq2_cum <- cbind(R2X_cum,R2Y_cum,Q2Y_cum); colnames(rq2_cum) <- c("R2X","R2Y","Q2Y")
+  comp <- which.max(Q2Y_cum) # number of components for best predictive power (based on Q2Y)
+  R2X_cum[comp]
+  R2Y_cum[comp]
+  Q2Y_cum[comp]
+  
+  
+  rq2_cum %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_cum))) %>% 
+    ggplot(aes(ncomp, value, fill=name, color=name, shape=name)) +
+    #    geom_vline(xintercept = comp, linetype="dashed") + 
+    geom_point(size=3) + #geom_line(size=1) +
+    theme_cowplot(18) + scale_x_continuous(n.breaks=10) +
+    labs(x="# LVs", y="% var. expl.", color="Metric", shape="Metric", fill="Metric")+
+    theme(panel.background = element_rect(color = "#000000"))+
+    scale_y_continuous(limits = c(0,100))
+  # ggsave("model_metrics_full.png", width = 5, height = 5)
+  
+  
+  
+  #VIP score calculations
+  vip.scores <- VIP(pls1, opt.comp = comp) %>% as.data.frame()
+  colnames(vip.scores) <- "score"
+  vip.scores <- vip.scores %>% rownames_to_column("analyte")
+  vip.ld <- vip.scores %>% mutate("PC1" = ld[,1])
+  
+  
+  #plot PC1 values vs VIP score
+  ggplot(vip.ld, aes(x = PC1, y = score, label = analyte))+
+    geom_point(size = 2, alpha = 0.5)+
+    geom_text_repel()+
+    theme_cowplot(18) + 
+    labs(x="LV1", y="VIP score")+
+    theme(panel.background = element_rect(color = "#000000"))+
+    geom_hline(yintercept = 1, color = "#333333", linetype = "dashed", alpha = 0.7) %>% 
+    print()
+  # ggsave("vip_vs_LV1_full.png")
+  
+  
+  #plot VIP scores
+  vip.scores %>% 
+    #  filter(score>1) %>% 
+    arrange(score) %>% 
+    ggplot(aes(y=reorder(analyte, score), x=score))+
+    geom_bar(stat="identity")+
+    theme_cowplot()+
+    #  geom_hline(yintercept = 1, linetype = "dashed")+
+    theme(panel.background = element_rect(color = "#000000"))+
+    labs(x = "VIP score", y = element_blank())
+  # ggsave("VIP_full.png", width = 5, height = 12)
+  
+  
+  ## scores matrix
+  sc.dat <- sc[,1:2] %>% 
+    data.frame %>% 
+    rownames_to_column(var = "sample") %>% 
+    mutate(pretreat = case_when(
+      grepl("NP", sample) ~ "NP",
+      grepl("TGFb", sample) ~ "TGFb",
+      grepl("TNFa", sample) ~ "TNFa",
+      grepl("Hypoxia", sample) ~ "Hypoxia",
+      T ~ "WHAT"
+    ), 
+    treat = case_when(
+      grepl("DMSO", sample) ~ "DMSO",
+      grepl("TMZ", sample) ~ "TMZ",
+      grepl("CARB", sample) ~ "CARB",
+      T ~ "WHAT"
+    ))
+  
+  sc.dat$pretreat <- sc.dat$pretreat %>% factor(pretreat.order)
+  sc.dat$treat <- sc.dat$treat %>% factor(drug.order)
+  sc.fact <- 10
+  
+  ## scores and loadings plot:
+  ggplot()+
+    geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+    geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+    geom_point(data = sc.dat, aes(x=Comp.1, y=Comp.2, color = pretreat, shape = treat), size = 3)+
+    # geom_text_repel(aes(x=sc[,1], y=sc[,2]), color="darkblue", label = rownames(Ysc))+
+    labs(title="", 
+         x="LV1", 
+         y="LV2")+
+    geom_point(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), alpha=0.5)+
+    geom_text_repel(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact),
+                    label=rownames(ld),
+                    color="#222222",
+                    size=3, max.overlaps = 20, max.iter = 10^8)+
+    geom_text_repel(aes(x=Yld[,1]*sc.fact, y=Yld[,2]*sc.fact),
+                    label="Cell Death", size=3, color="blue")+
+    theme_cowplot() +
+    scale_size(
+      limits=c(0,1),
+    )+
+    theme(
+      panel.background = element_rect(color = "#000000")
+    ) +
+    scale_x_continuous(expand=expansion(mult=.1))
+  
+  
+}
+```
+
+###carbo
+```{r}
+
+run_filter <- T
+
+# filtering model for only Carbo-dependent signals
+data.sub <- full_join(data.dna, data.mapk) %>% 
+  full_join(data.akt) %>% 
+  full_join(data.nfkb)
+
+data.sub.carb <- data.sub %>% filter(Drug %in% c("DMSO", "CARB"))
+
+all.analytes <- c(proteins.dna, proteins.mapk, proteins.akt, proteins.nfkb)
+times.num <- c(0, 3, 6, 12, 24)
+prts <- c("NP", "TGFb", "TNFa", "Hypoxia")
+fc.table <- data.frame(Time = as.integer(), Pretreat = as.character(), comparison = as.character(), protein = as.character(), logFC = as.double(), pval = as.double())
+
+if(run_filter){
+  for(t in times.num){
+    for (trt in prts){
+      for(prt in all.analytes){
+        a1 <- data.sub.carb %>% filter(Drug == "DMSO", Pretreat == trt, time == t, ) %>% dplyr::select(prt)
+        b1 <- data.sub.carb %>% filter(Drug == "CARB", Pretreat == trt, time == t, ) %>% dplyr::select(prt)
+        if(nrow(a1) > 1){
+          t1 <- t.test(a1, b1)
+          
+          d1 <- foldchange(mean(b1[[prt]]), mean(a1[[prt]])) %>% foldchange2logratio(2)
+          
+          fc.table <- fc.table %>% add_row(Time = t, Pretreat = trt, comparison = "DMSO vs CARBO", protein = prt, logFC = d1, pval = t1$p.value)
+        }
+      }
+    }
+  }
+}
+
+
+#Benhamini-Hochberg adjustment for multiple comparisons
+p_adj <- fc.table$pval %>% p.adjust(., method = "BH", n = length(.))
+fc.table$p_adj <- p_adj
+write.csv(fc.table, file = "../Chemoresistance manuscript/figure export/fc_calc_carbo.csv")
+
+
+# if the absolute value of the fold change is >0.5 and the adjusted p-value is < 0.05, retain that protein in the model
+fc.table.filt <- fc.table %>% filter(abs(logFC)>0.5 & p_adj < 0.05) %>% 
+  mutate(analyte = paste(protein, Time, sep = "_")) %>% 
+  filter(analyte %in% rownames(m1.ld))
+fc.filt.carbo <- fc.table.filt
+
+to.plot <- pull(fc.table.filt, analyte) %>% unique()
+analytes.carb <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = "Cell Death", size = 8/.pt)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="blue")+
+  labs(title="Carboplatin-dependent signals",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt), 
+                  max.overlaps = Inf,
+                  label.padding = 0.25,
+                  segment.size = 0.3,
+                  color="#222222",
+                  size=7/.pt, min.segment.length = 0)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]), #these lines are here just to get the spacing the same as the full model
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=3, max.overlaps = 10)+
+  # #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  # #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot(7) +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/carbo-filtered-PLSR.svg", width = 3.5, height = 3.5, units = "in")
+
+```
+
+```{r}
+if(run_filter){
+  # carbo-filtered model regeneration
+  rows.dmso <- c(1, 4, 7, 10)
+  rows.tmz <- c(2,5,8,11)
+  rows.carb <- c(3,6,9,12)
+  
+  rows.keep <- c(rows.dmso, rows.tmz, rows.carb) %>% sort()
+  
+  
+  x.mat <- data_all %>%
+    .[rows.keep,] %>% 
+    select(analytes.carb) %>% 
+    # select(to.plot) %>% 
+    apply(2, function(x) ifelse(x<0, 0, x)) %>% 
+    scale(T, T) %>% 
+    as.matrix()
+  
+  y.mat <- pheno.mat %>% .[rows.keep,]
+  
+  pheatmap(x.mat, cluster_rows = T, cluster_cols = T, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA)
+  
+  mydata <- data.frame(Y=I(y.mat),X=I(x.mat))
+  pls1 <- plsr(Y~X, scale=F, data=mydata, validation = "LOO", method="kernelpls") # generate PLSR model
+  
+  sc <- scores(pls1)
+  ld <- loadings(pls1)
+  Ysc <-Yscores(pls1)
+  Yld <- Yloadings(pls1)
+  
+  # plot biplot of scores and loadings - full model
+  ## LV1 vs LV2
+  ggplot()+
+    geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+    geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+    geom_point(aes(x=ld[,1], y=ld[,2], alpha=0.5))+
+    #  geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+    geom_text(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = "Cell Death")+
+    labs(title="", 
+         x="LV1", 
+         y="LV2")+
+    geom_text_repel(aes(x=ld[,1], y=ld[,2]), 
+                    label=rownames(ld),
+                    color="#222222",
+                    size=3, max.overlaps = 10)+
+    #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+    #            label=rownames(Yld), size=3, color="blue")+
+    theme_cowplot() +
+    scale_size(
+      limits=c(0,1),
+    )+
+    theme(
+      panel.background = element_rect(color = "#000000"),
+      legend.position = "none"
+    ) +
+    scale_x_continuous(expand = expansion(mult = 0.1))+
+    scale_y_continuous(expand = expansion(mult = 0.1))
+  
+  # ggsave("PLSR_full LV1 vs LV2.png", width = 8, height = 5)
+  
+  
+  ## plot R2X, R2Y, Q2Y
+  pls1res <- rq_func(pls1)
+  R2X <- pls1res$R2X; R2X_cum <- pls1res$R2X.cum
+  R2Y <- pls1res$R2Y; R2Y_cum <- pls1res$R2Y.cum
+  Q2Y_cum <- pls1res$Q2Y.cum 
+  rq2_cum <- cbind(R2X_cum,R2Y_cum,Q2Y_cum); colnames(rq2_cum) <- c("R2X","R2Y","Q2Y")
+  comp <- which.max(Q2Y_cum) # number of components for best predictive power (based on Q2Y)
+  R2X_cum[comp]
+  R2Y_cum[comp]
+  Q2Y_cum[comp]
+  
+  
+  rq2_cum %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_cum))) %>% 
+    ggplot(aes(ncomp, value, fill=name, color=name, shape=name)) +
+    #    geom_vline(xintercept = comp, linetype="dashed") + 
+    geom_point(size=3) + #geom_line(size=1) +
+    theme_cowplot(18) + scale_x_continuous(n.breaks=10) +
+    labs(x="# LVs", y="% var. expl.", color="Metric", shape="Metric", fill="Metric")+
+    theme(panel.background = element_rect(color = "#000000"))+
+    scale_y_continuous(limits = c(0,100))
+  # ggsave("model_metrics_full.png", width = 5, height = 5)
+  
+  
+  
+  #VIP score calculations
+  vip.scores <- VIP(pls1, opt.comp = comp) %>% as.data.frame()
+  colnames(vip.scores) <- "score"
+  vip.scores <- vip.scores %>% rownames_to_column("analyte")
+  vip.ld <- vip.scores %>% mutate("PC1" = ld[,1])
+  
+  
+  #plot PC1 values vs VIP score
+  ggplot(vip.ld, aes(x = PC1, y = score, label = analyte))+
+    geom_point(size = 2, alpha = 0.5)+
+    geom_text_repel()+
+    theme_cowplot(18) + 
+    labs(x="LV1", y="VIP score")+
+    theme(panel.background = element_rect(color = "#000000"))+
+    geom_hline(yintercept = 1, color = "#333333", linetype = "dashed", alpha = 0.7) %>% 
+    print()
+  # ggsave("vip_vs_LV1_full.png")
+  
+  
+  #plot VIP scores
+  vip.scores %>% 
+    #  filter(score>1) %>% 
+    arrange(score) %>% 
+    ggplot(aes(y=reorder(analyte, score), x=score))+
+    geom_bar(stat="identity")+
+    theme_cowplot()+
+    #  geom_hline(yintercept = 1, linetype = "dashed")+
+    theme(panel.background = element_rect(color = "#000000"))+
+    labs(x = "VIP score", y = element_blank())
+  # ggsave("VIP_full.png", width = 5, height = 12)
+  
+  
+  ## scores matrix
+  sc.dat <- sc[,1:2] %>% 
+    data.frame %>% 
+    rownames_to_column(var = "sample") %>% 
+    mutate(pretreat = case_when(
+      grepl("NP", sample) ~ "NP",
+      grepl("TGFb", sample) ~ "TGFb",
+      grepl("TNFa", sample) ~ "TNFa",
+      grepl("Hypoxia", sample) ~ "Hypoxia",
+      T ~ "WHAT"
+    ), 
+    treat = case_when(
+      grepl("DMSO", sample) ~ "DMSO",
+      grepl("TMZ", sample) ~ "TMZ",
+      grepl("CARB", sample) ~ "CARB",
+      T ~ "WHAT"
+    ))
+  
+  sc.dat$pretreat <- sc.dat$pretreat %>% factor(pretreat.order)
+  sc.dat$treat <- sc.dat$treat %>% factor(drug.order)
+  sc.fact <- 20
+  
+  ## scores and loadings plot:
+  ggplot()+
+    geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+    geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+    geom_point(data = sc.dat, aes(x=Comp.1, y=Comp.2, color = pretreat, shape = treat), size = 3)+
+    # geom_text_repel(aes(x=sc[,1], y=sc[,2]), color="darkblue", label = rownames(Ysc))+
+    labs(title="", 
+         x="LV1", 
+         y="LV2")+
+    geom_point(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), alpha=0.5)+
+    geom_text_repel(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact),
+                    label=rownames(ld),
+                    color="#222222",
+                    size=3, max.overlaps = 20, max.iter = 10^8)+
+    geom_text_repel(aes(x=Yld[,1]*sc.fact, y=Yld[,2]*sc.fact),
+                    label="Death", size=3, color="blue")+
+    theme_cowplot() +
+    scale_size(
+      limits=c(0,1),
+    )+
+    theme(
+      panel.background = element_rect(color = "#000000")
+    ) +
+    scale_x_continuous(expand=expansion(mult=.1))
+  
+}
+
+```
+
+###Filter using t-test + BH correction to do TMZ and Carbo together
+```{r}
+t_test_q <- T
+ANOVA_q <- F
+
+# filtering model for TMZ and carbo-dependent analytes
+omit.analytes2 <- omit.analytes %>% gsub("_", "", .)
+
+data.sub <- full_join(data.dna, data.mapk) %>% 
+  full_join(data.akt) %>% 
+  full_join(data.nfkb) %>% 
+  select(-omit.analytes2)
+
+all.analytes <- c(proteins.dna, proteins.mapk, proteins.akt, proteins.nfkb)
+all.analytes <- all.analytes[all.analytes %!in% omit.analytes2]
+times.num <- c(3, 6, 12, 24)
+pretreats <- c("NP", "TGFb", "TNFa", "Hypoxia")
+fc.table <- data.frame(Time = as.integer(), Pretreat = as.character(), comparison = as.character(), protein = as.character(), logFC = as.double(), pval = as.double(), p_adj = as.double())
+
+# determine for all times and pretreatments, what is the fold change in each protein comparing TMZ/carbo vs DMSO:
+if(t_test_q){
+  for(t in times.num){
+    for (pre in pretreats){
+      for(prot in all.analytes){
+        a1 <- data.sub %>% filter(Drug == "DMSO", Pretreat == pre, time == t) %>% dplyr::select(prot)
+        b1 <- data.sub %>% filter(Drug == "TMZ", Pretreat == pre, time == t) %>% dplyr::select(prot)
+        c1 <- data.sub %>% filter(Drug == "CARB", Pretreat == pre, time == t) %>% dplyr::select(prot)
+        if(nrow(a1) > 1){
+          #run t tests for TMZ vs DMSO
+          t1 <- t.test(a1, b1)
+          d1 <- foldchange(mean(b1[[prot]]), mean(a1[[prot]])) %>% foldchange2logratio(2)
+          fc.table <- fc.table %>% add_row(Time = t, Pretreat = pre, comparison = "DMSO vs TMZ", protein = prot, logFC = d1, pval = t1$p.value)
+          
+          #do the same for carbo vs DMSO
+          t1 <- t.test(a1, c1)
+          d1 <- foldchange(mean(c1[[prot]]), mean(a1[[prot]])) %>% foldchange2logratio(2)
+          fc.table <- fc.table %>% add_row(Time = t, Pretreat = pre, comparison = "DMSO vs CARBO", protein = prot, logFC = d1, pval = t1$p.value)
+        }
+      }
+    }
+  }
+  #Benjamini-Hochberg adjustment for multiple comparisons
+  p_adj <- fc.table$pval %>% p.adjust(., method = "BH", n = length(.))
+  fc.table$p_adj <- p_adj
+  fc.table <- fc.table %>% mutate(retain = case_when(
+    abs(logFC)>0.5 & p_adj < 0.05 ~ T,
+    T ~ F
+  ))
+}
+
+
+if(ANOVA_q){
+  for(t in times.num){
+    for (pre in pretreats){
+      for(prot in all.analytes){
+        #calculate significance between all drugs using ANOVA + Tukey
+        a1 <- data.sub %>% filter(Pretreat == pre, time == t)
+        anova1 <- aov(pull(a1, prot) ~ Drug, data = a1)
+        t1 <- TukeyHSD(anova1)$Drug %>% data.frame()
+        #calculate fold change between all drugs
+        dmso_values <- data.sub %>% filter(Drug == "DMSO", Pretreat == pre, time == t) %>% dplyr::select(prot)
+        tmz_values <- data.sub %>% filter(Drug == "TMZ", Pretreat == pre, time == t) %>% dplyr::select(prot)
+        carb_values <- data.sub %>% filter(Drug == "CARB", Pretreat == pre, time == t) %>% dplyr::select(prot)
+        dmso_vs_tmz <- foldchange(mean(dmso_values[[prot]]), mean(tmz_values[[prot]])) %>% foldchange2logratio(2)
+        dmso_vs_carb <- foldchange(mean(dmso_values[[prot]]), mean(carb_values[[prot]])) %>% foldchange2logratio(2)
+        tmz_vs_carb <- foldchange(mean(tmz_values[[prot]]), mean(carb_values[[prot]])) %>% foldchange2logratio(2)
+        
+        #assemble results table
+        for(i in nrow(t1)){
+                    fc.table <- fc.table %>% add_row(Time = t, 
+                                                     Pretreat = pre, 
+                                                     comparison = rownames(t1)[i], 
+                                                     protein = prot, 
+                                                     logFC = 0, 
+                                                     p_adj = t1$p.adj[i])
+
+        }
+      }
+    }
+  }
+}
+
+write.csv(fc.table, file = "../Chemoresistance manuscript/figure export/fc_table_TMZ_CARBO.csv")
+
+# if the absolute value of the fold change is >0.5 and the adjusted p-value is < 0.05, retain that protein in the model
+fc.table.filt <- fc.table %>% filter(abs(logFC)>0.5 & p_adj < 0.05) %>% 
+  mutate(analyte = paste(protein, Time, sep = "_")) %>% 
+  filter(analyte %in% rownames(m1.ld))
+fc.filt.tmz <- fc.table.filt %>% filter(comparison == "DMSO vs TMZ")
+fc.filt.carbo <- fc.table.filt %>% filter(comparison == "DMSO vs CARBO")
+
+#plot TMZ results
+to.plot <- pull(fc.filt.tmz, analyte) %>% unique()
+analytes.tmz <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=m1.yld[,1], y=m1.yld[,2], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=m1.yld[1], y=m1.yld[2]), color="blue", label = "Cell Death", size = 7/.pt)+
+  geom_point(aes(x=m1.yld[1], y=m1.yld[2]), color="blue")+
+  labs(title="Temozolomide-dependent signals",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt), 
+                  max.overlaps = Inf,
+                  label.padding = 0.25,
+                  segment.size = 0.3,
+                  color="#222222",
+                  size=7/.pt, min.segment.length = 0)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]), #these lines are here just to get the spacing the same as the full model
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=7/.pt, max.overlaps = 10)+
+  # #  geom_text_repel(aes(x=m1.yld[,1], y=m1.yld[,2]), 
+  # #            label=rownames(m1.yld), size=3, color="blue")+
+  theme_cowplot(7) +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/TMZ-filtered-PLSR_smaller.svg", width = 2.5, height = 2.5, units = "in")
+ggsave("../Chemoresistance manuscript/figure export/TMZ-filtered-PLSR_larger.svg", width = 3, height = 3, units = "in")
+
+
+#plot CARBO results
+to.plot <- pull(fc.filt.carbo, analyte) %>% unique()
+analytes.carbo <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=m1.yld[,1], y=m1.yld[,2], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=m1.yld[1], y=m1.yld[2]), color="blue", label = "Cell Death", size = 7/.pt)+
+  geom_point(aes(x=m1.yld[1], y=m1.yld[2]), color="blue")+
+  labs(title="Carboplatin-dependent signals",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt), 
+                  max.overlaps = Inf,
+                  label.padding = 0.25,
+                  segment.size = 0.3,
+                  color="#222222",
+                  size=7/.pt, min.segment.length = 0)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]), #these lines are here just to get the spacing the same as the full model
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=7/.pt, max.overlaps = 10)+
+  # #  geom_text_repel(aes(x=m1.yld[,1], y=m1.yld[,2]), 
+  # #            label=rownames(m1.yld), size=3, color="blue")+
+  theme_cowplot(7) +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+ggsave("../Chemoresistance manuscript/figure export/carbo-filtered-PLSR_smaller.svg", width = 2.5, height = 2.5, units = "in")
+ggsave("../Chemoresistance manuscript/figure export/carbo-filtered-PLSR_larger.svg", width = 3, height = 3, units = "in")
+
+#make some volcano plots
+fc.tmz <- fc.table %>% filter(comparison == "DMSO vs TMZ") %>% 
+  mutate(analyte = paste(protein, Time, sep = "_"))
+fc.tmz$Pretreat <- fc.tmz$Pretreat %>% factor(c("NP", "TGFb", "TNFa", "Hypoxia"))
+  
+ggplot(fc.tmz, aes(x = logFC, y = -log10(p_adj), label = analyte, color = Pretreat))+
+  geom_point(size = 0.5)+
+  geom_text_repel(data = function(x){subset(x, abs(logFC)>0.5 & p_adj < 0.05)},
+                  max.overlaps = Inf, box.padding = 0.1, size = 7/.pt)+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5, linewidth = 0.3)+
+  geom_vline(xintercept = 0.5, linetype = "dashed", alpha = 0.5, linewidth = 0.3)+
+  geom_vline(xintercept = -0.5, linetype = "dashed", alpha = 0.5, linewidth = 0.3)+
+  scale_y_continuous(limits = c(1, 2), breaks = c(1, 1.5, 2))+
+  theme_cowplot(7)+
+  scale_color_okabe_ito(order = c(9, 5, 6, 3))+
+  theme(legend.position = "top")+
+  labs(title = "DMSO vs. TMZ")
+ggsave("../Chemoresistance manuscript/figure export/volcano_tmz.svg", width = 4, height = 3, units = "in")
+
+fc.carbo <- fc.table %>% filter(comparison == "DMSO vs CARBO") %>% 
+  mutate(analyte = paste(protein, Time, sep = "_"))
+fc.carbo$Pretreat <- fc.carbo$Pretreat %>% factor(c("NP", "TGFb", "TNFa", "Hypoxia"))
+  
+ggplot(fc.carbo, aes(x = logFC, y = -log10(p_adj), label = analyte, color = Pretreat))+
+  geom_point(size = 0.5)+
+  geom_text_repel(data = function(x){subset(x, abs(logFC)>0.5 & p_adj < 0.05)},
+                  max.overlaps = Inf, box.padding = 0.1, size = 7/.pt)+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5, linewidth = 0.3)+
+  geom_vline(xintercept = 0.5, linetype = "dashed", alpha = 0.5, linewidth = 0.3)+
+  geom_vline(xintercept = -0.5, linetype = "dashed", alpha = 0.5, linewidth = 0.3)+
+  scale_y_continuous(limits = c(1, 2), breaks = c(1, 1.5, 2))+
+  theme_cowplot(7)+
+  scale_color_okabe_ito(order = c(9, 5, 6, 3))+
+  theme(legend.position = "top")+
+  labs(title = "DMSO vs. CARBO")
+ggsave("../Chemoresistance manuscript/figure export/volcano_carbo.svg", width = 4, height = 3, units = "in")
+
+```
+
+
+
+###TMZ vs CARBO - TGFb
+```{r}
+
+run_filter <- T
+
+# filtering model for only TMZ-dependent signals
+data.sub <- full_join(data.dna, data.mapk) %>% 
+  full_join(data.akt) %>% 
+  full_join(data.nfkb)
+
+data.sub.tmz <- data.sub %>% filter(Drug %in% c("TMZ", "CARB"))
+
+all.analytes <- c(proteins.dna, proteins.mapk, proteins.akt, proteins.nfkb)
+times.num <- c(0, 3, 6, 12, 24)
+# prts <- c("NP", "TGFb", "TNFa", "Hypoxia")
+prts <- c("TGFb")
+fc.table <- data.frame(Time = as.integer(), Pretreat = as.character(), protein = as.character(), logFC = as.double(), pval = as.double())
+
+# determine for all times, what is the fold change in each protein comparing TMZ vs CARBO for TGFb-treated samples:
+if(run_filter){
+  for(t in times.num){
+    for (trt in prts){
+      for(prt in all.analytes){
+        a1 <- data.sub.tmz %>% filter(Drug == "CARB", Pretreat == trt, time == t, ) %>% dplyr::select(prt)
+        b1 <- data.sub.tmz %>% filter(Drug == "TMZ", Pretreat == trt, time == t, ) %>% dplyr::select(prt)
+        if(nrow(a1) > 1){
+          t1 <- t.test(a1, b1)
+          
+          d1 <- foldchange(mean(b1[[prt]]), mean(a1[[prt]])) %>% foldchange2logratio(2)
+          
+          fc.table <- fc.table %>% add_row(Time = t, Pretreat = trt, protein = prt, logFC = d1, pval = t1$p.value)
+        }
+      }
+    }
+  }
+}
+
+# if the absolute value of the fold change is >0.5 and the pvalue is < 0.05, retain that protein in the model
+fc.table.filt <- fc.table %>% filter(abs(logFC)>0.5 & pval < 0.05) %>% 
+  mutate(analyte = paste(protein, Time, sep = "_")) %>% 
+  filter(analyte %in% rownames(m1.ld))
+
+to.plot <- pull(fc.table.filt, analyte) %>% unique()
+analytes.tmz <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=m1.yld[,1], y=m1.yld[,2], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=m1.yld[1], y=m1.yld[2]), color="blue", label = "Cell Death", size = 8/.pt)+
+  geom_point(aes(x=m1.yld[1], y=m1.yld[2]), color="blue")+
+  labs(title="Temozolomide vs. Carboplatin-dependent signals in TGFb-treated cells",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt),
+                  color="#222222",
+                  size=7/.pt, min.segment.length = 0)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]), #these lines are here just to get the spacing the same as the full model
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=3, max.overlaps = Inf)+
+  # #  geom_text_repel(aes(x=m1.yld[,1], y=m1.yld[,2]), 
+  # #            label=rownames(m1.yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme1+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+# ggsave("../Chemoresistance manuscript/figure export/TMZ-filtered-PLSR.svg", width = 3, height = 3, units = "in")
+
+```
+
+####TMZ vs CARBO - TGFb normalized by NP
+```{r}
+
+run_filter <- T
+
+# filtering model for only TMZ-dependent signals
+data.sub <- full_join(data.dna, data.mapk) %>% 
+  full_join(data.akt) %>% 
+  full_join(data.nfkb)
+
+data.sub.1 <- data.sub %>% filter(Drug %in% c("TMZ", "CARB")) %>% filter(Pretreat %in% c("NP", "TGFb"))
+
+data.sub.2 <- data.sub.1 %>% select(-sample) %>% group_by(Drug, time, rep)
+
+data.sub.3 <- data.sub.2[data.sub.2$Pretreat == "TGFb",7:39]/data.sub.2[data.sub.2$Pretreat == "NP",7:39] 
+data.sub.4 <- cbind(data.sub.2[data.sub.2$Pretreat == "TGFb",2:5], data.sub.3[, is.finite(colSums(data.sub.3))]) %>% ungroup() 
+  
+
+all.analytes <- colnames(data.sub.4)[5:33]
+times.num <- c(3, 6, 12, 24)
+fc.table <- data.frame(Time = as.integer(), protein = as.character(), logFC = as.double(), pval = as.double())
+
+# determine for all times, what is the fold change in each protein comparing TMZ vs CARBO for TGFb-treated samples normalized by NP samples:
+if(run_filter){
+  for(t in times.num){
+    for(prot in all.analytes){
+      a1 <- data.sub.4 %>% filter(Drug == "CARB", time == t, ) %>% dplyr::select(prot)
+      b1 <- data.sub.4 %>% filter(Drug == "TMZ", time == t, ) %>% dplyr::select(prot)
+      if(nrow(a1) > 1){
+        t1 <- t.test(a1, b1)
+        
+        d1 <- foldchange(mean(b1[[prot]]), mean(a1[[prot]])) %>% foldchange2logratio(2)
+        
+        fc.table <- fc.table %>% add_row(Time = t, protein = prot, logFC = d1, pval = t1$p.value)
+      }
+    }
+  }
+}
+
+# if the absolute value of the fold change is >0.5 and the pvalue is < 0.05, retain that protein in the model
+fc.table.filt <- fc.table %>% filter(abs(logFC)>0.5 & pval < 0.05) %>% 
+  mutate(analyte = paste(protein, Time, sep = "_")) %>% 
+  filter(analyte %in% rownames(m1.ld))
+
+to.plot <- pull(fc.table.filt, analyte) %>% unique()
+analytes.tmz <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=m1.yld[,1], y=m1.yld[,2], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=m1.yld[1], y=m1.yld[2]), color="blue", label = "Cell Death", size = 8/.pt)+
+  geom_point(aes(x=m1.yld[1], y=m1.yld[2]), color="blue")+
+  labs(title="Temozolomide vs. Carboplatin-dependent signals in TGFb-treated cells (normalized to NP)",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt),
+                  color="#222222",
+                  size=7/.pt, min.segment.length = 0)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]), #these lines are here just to get the spacing the same as the full model
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=3, max.overlaps = Inf)+
+  # #  geom_text_repel(aes(x=m1.yld[,1], y=m1.yld[,2]), 
+  # #            label=rownames(m1.yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme1+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+# ggsave("../Chemoresistance manuscript/figure export/TMZ-filtered-PLSR.svg", width = 3, height = 3, units = "in")
+
+
+
+```
+####this one is correct
+```{r}
+# what if I average the values and ignore statistical significance - it doesn't really make sense to compare within replicates because they should all be compararble
+
+run_filter <- T
+
+# filtering model for only TMZ-dependent signals
+data.sub <- full_join(data.dna, data.mapk) %>% 
+  full_join(data.akt) %>% 
+  full_join(data.nfkb)
+
+data.sub.1 <- data.sub %>% filter(Drug %in% c("TMZ", "CARB")) %>% filter(Pretreat %in% c("NP", "TGFb"))
+
+data.sub.2 <- data.sub.1 %>% select(-sample) %>% group_by(Pretreat, Drug, time) %>% summarise_if(is.numeric, mean)
+
+data.sub.3 <- data.sub.2[data.sub.2$Pretreat == "TGFb",6:38]/data.sub.2[data.sub.2$Pretreat == "NP",6:38]
+data.sub.4 <- cbind(data.sub.2[data.sub.2$Pretreat == "TGFb",2:3], data.sub.3[, is.finite(colSums(data.sub.3))]) %>% ungroup()
+  
+
+all.analytes <- colnames(data.sub.4)[3:33]
+times.num <- c(3, 6, 12, 24)
+fc.table <- data.frame(Time = as.integer(), protein = as.character(), logFC = as.double())
+
+# determine for all times, what is the fold change in each protein comparing TMZ vs CARBO for TGFb-treated samples normalized by NP samples:
+if(run_filter){
+  for(t in times.num){
+    for(prot in all.analytes){
+      a1 <- data.sub.4 %>% filter(Drug == "CARB", time == t, ) %>% dplyr::select(prot)
+      b1 <- data.sub.4 %>% filter(Drug == "TMZ", time == t, ) %>% dplyr::select(prot)
+      if(nrow(a1) > 0){
+        # t1 <- t.test(a1, b1)
+        
+        d1 <- foldchange(mean(b1[[prot]]), mean(a1[[prot]])) %>% foldchange2logratio(2)
+        
+        fc.table <- fc.table %>% add_row(Time = t, protein = prot, logFC = d1)
+      }
+    }
+  }
+}
+
+# if the absolute value of the fold change is >0.5 and the pvalue is < 0.05, retain that protein in the model
+fc.table.filt <- fc.table %>% filter(abs(logFC)>0.5) %>% 
+  mutate(analyte = paste(protein, Time, sep = "_")) %>% 
+  filter(analyte %in% rownames(m1.ld))
+
+to.plot <- pull(fc.table.filt, analyte) %>% unique()
+analytes.tmz <- to.plot
+m1.filt <- m1.ld[to.plot,] %>% data.frame()
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`, alpha=0.5))+
+  # geom_point(aes(x=m1.yld[,1], y=m1.yld[,2], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=m1.yld[1], y=m1.yld[2]), color="blue", label = "Cell Death", size = 8/.pt)+
+  geom_point(aes(x=m1.yld[1], y=m1.yld[2]), color="blue")+
+  labs(title="Temozolomide vs. Carboplatin-dependent signals in TGFb-treated cells (normalized to NP)",
+       x="LV1",
+       y="LV2")+
+  geom_text_repel(data = m1.filt, aes(x=`Comp.1`, y=`Comp.2`),
+                  label=rownames(m1.filt),
+                  color="#222222",
+                  size=7/.pt, min.segment.length = 0)+
+  geom_text_repel(aes(x=m1.ld[,1], y=m1.ld[,2]), #these lines are here just to get the spacing the same as the full model
+                  label=rownames(m1.ld),
+                  alpha = 0,
+                  size=3, max.overlaps = Inf)+
+  # #  geom_text_repel(aes(x=m1.yld[,1], y=m1.yld[,2]), 
+  # #            label=rownames(m1.yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme1+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+# ggsave("../Chemoresistance manuscript/figure export/TMZ-filtered-PLSR.svg", width = 3, height = 3, units = "in")
+
+filt_data <- fc.table.filt %>% mutate(rank = row_number(logFC))
+
+ggplot(data = filt_data, aes(x = rank, y = logFC, label = analyte))+
+  geom_point()+
+  geom_text_repel()+
+  labs(x = element_blank())
+```
+
+# plotting specific combinations
+```{r fig.width=10, fig.height=6}
+library(ggstatsplot)
+
+data.all.wide <- data.all.avg %>% 
+  filter(protein %in% c("PTEN", "CHK1")) %>% 
+  pivot_wider(id_cols = c(time, Pretreat, Drug), names_from = protein, values_from = avg)
+
+data.all.wide %>%
+  ggscatterstats(x = "PTEN", y = "CHK1", color = Pretreat)
+
+data.all.wide %>% 
+  ggplot(aes(x = PTEN, y = CHK1, color = time, shape = Pretreat))+
+  geom_point()+
+  facet_wrap(vars(Drug))
+
+for(d in drug.order){
+  vect1 <- data.all.wide %>% filter(Drug == d) %>% pull(PTEN)
+  vect2 <- data.all.wide %>% filter(Drug == d) %>% pull(CHK1)
+  
+  cor1 <-   cor.test(vect1, vect2, method = "pearson")
+  
+  paste0(d, ": Pearson correlation: ", round(cor1$estimate, 2),  "   R = ", round(cor1$p.value, 4), sep = ""
+  ) %>% print()
+}
+
+
+# cor1$estimate
+```
+
+# calculating protein correlations
+
+```{r fig.width = 10, fig.height=5}
+library(Hmisc)
+#trying to figure out what could be contributing to carboplatin-driven PTEN downregualtion (and TMZ-driven upregulation)
+
+
+# take data and organize it so that I can calculate correlations for each protein pair
+d1 <- full_join(data.dna, data.mapk) %>% full_join(data.akt) %>% full_join(data.nfkb) %>% 
+  dplyr::select(-c(Location, sample, rep, number)) %>% 
+  filter(time>0) %>% 
+  select(-gsub("_", "", omit.analytes))
+
+
+
+
+# d1 <- data.all.avg %>% 
+#   pivot_wider(id_cols = c(time, Pretreat, Drug), names_from = protein, values_from = avg) %>% 
+#   select(-gsub("_", "", omit.analytes))
+
+d1.dmso <- d1 %>% filter(Drug == 'DMSO')
+d1.tmz <- d1 %>% filter(Drug == 'TMZ')
+d1.carb <- d1 %>% filter(Drug == 'CARB')
+
+#calculate
+c1 <- d1[,4:ncol(d1)] %>% data.matrix() %>% rcorr(type = "pearson")
+c1.dmso <- d1.dmso[,4:ncol(d1)] %>% data.matrix() %>% rcorr(type = "pearson")
+c1.tmz <- d1.tmz[,4:ncol(d1)] %>% data.matrix() %>% rcorr(type = "pearson")
+c1.carb <- d1.carb[,4:ncol(d1)] %>% data.matrix() %>% rcorr(type = "pearson")
+
+
+## extract correlations and p values
+cor.pval <- c1$P %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "comparison") %>% 
+  pivot_longer(cols = -comparison, names_to = "protein", values_to = "pval")
+
+cor.r <- c1$r %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "comparison") %>% 
+  pivot_longer(cols = -comparison, names_to = "protein", values_to = "r")
+
+cor.pval.dmso <- c1.dmso$P %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "comparison") %>% 
+  pivot_longer(cols = -comparison, names_to = "protein", values_to = "pval") %>% 
+  mutate(treat = "DMSO")
+
+cor.r.dmso <- c1.dmso$r %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "comparison") %>% 
+  pivot_longer(cols = -comparison, names_to = "protein", values_to = "r") %>% 
+  mutate(treat = "DMSO")
+
+cor.pval.tmz <- c1.tmz$P %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "comparison") %>% 
+  pivot_longer(cols = -comparison, names_to = "protein", values_to = "pval") %>% 
+  mutate(treat = "TMZ")
+
+cor.r.tmz <- c1.tmz$r %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "comparison") %>% 
+  pivot_longer(cols = -comparison, names_to = "protein", values_to = "r") %>% 
+  mutate(treat = "TMZ")
+
+cor.pval.carb <- c1.carb$P %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "comparison") %>% 
+  pivot_longer(cols = -comparison, names_to = "protein", values_to = "pval") %>% 
+  mutate(treat = "CARB")
+
+cor.r.carb <- c1.carb$r %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "comparison") %>% 
+  pivot_longer(cols = -comparison, names_to = "protein", values_to = "r") %>% 
+  mutate(treat = "CARB")
+
+cor.pval.all <- rbind(cor.pval.dmso, cor.pval.tmz) %>% rbind(cor.pval.carb)
+cor.r.all <- rbind(cor.r.dmso, cor.r.tmz) %>% rbind(cor.r.carb)
+
+c1.res <- left_join(cor.r, cor.pval)
+c1.res.all <- left_join(cor.r.all, cor.pval.all)
+c1.res.all$treat <- c1.res.all$treat %>% factor(drug.order)
+```
+
+## plotting PTEN correlations
+```{r}
+c1.res %>% 
+  filter(comparison == 'PTEN') %>% 
+  ggplot(aes(x = r, y = -log10(pval), label = protein))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  geom_point()+
+  theme_cowplot(8)+
+  geom_text_repel(max.overlaps = 20)+
+  labs(x = "PTEN Correlation")+
+  geom_text(aes(x = 0.8, y = -log10(0.05)-0.5, label = "p = 0.05"), color = "red", size = 6/.pt)
+
+c1.pten <- c1.res %>% 
+  filter(comparison == "PTEN") %>%
+  top_n(nrow(.), -r) %>% 
+  mutate(rank = row_number(r)) %>% 
+  filter(!is.na(pval))
+
+ggplot(c1.pten, aes(y = r, x = rank, label = protein))+
+  geom_point(size = 0.5)+
+  geom_point(data = subset(c1.pten, protein %in% c("cJun", "JNK", "MEK1", "p38")), color = "red", size = 0.5)+
+  geom_text_repel(data = subset(c1.pten, protein %in% c("cJun", "JNK", "MEK1", "p38")), min.segment.length = 0, size = 8/.pt)+
+  theme1+
+  scale_y_reverse(expand = expansion(mult = c(0.1,0.25)))+
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5)+
+  labs(x = element_blank(), y = "PTEN correlation")+
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+ggsave("../Chemoresistance manuscript/figure export/PTEN_corr.svg", width = 2.5, height = 1.5, units = "in")
+  
+#PTEN corr by drug
+c1.res.all %>% 
+  filter(comparison == 'PTEN') %>% 
+  ggplot(aes(x = r, y = -log10(pval), label = protein, color = treat))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5)+
+  geom_point(size = 0.5)+
+  theme_cowplot(8)+
+  # scale_y_log10()+
+  geom_text_repel(data = subset(filter(c1.res.all, comparison == "PTEN"), pval < 0.05), 
+                  max.overlaps = Inf, max.iter = 10^9, size = 7/.pt, box.padding = 0.1)+
+  facet_wrap(vars(treat))+
+  theme(legend.position = "none")+
+  labs(x = "PTEN Correlation", y = expression("-log"[10]("p-value")))+
+  scale_color_okabe_ito(order = c(9, 5, 6))
+ggsave("../Chemoresistance manuscript/figure export/PTEN_corr_by_drug.svg", width = 3.5, height = 2.5, units = "in")
+
+
+## correlation plot, but only analytes that are differentially regualted by TMZ/carbo
+tmz.sig <- fc.filt.tmz %>% distinct(protein) %>% pull(protein)
+c1.res.all %>% 
+  filter(comparison == "PTEN" & protein %in% tmz.sig & treat != "CARB") %>% 
+  ggplot(aes(x = r, y = -log10(pval), label = protein, color = treat))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5)+
+  geom_point()+
+  # scale_y_log10()+
+  geom_text_repel(max.overlaps = 20, max.iter = 10^9)+
+  facet_wrap(vars(treat))+
+  theme(legend.position = "none")+
+  labs(x = "PTEN Correlation")
+
+carbo.sig <- fc.filt.carbo %>% distinct(protein) %>% pull(protein)
+c1.res.all %>% 
+  filter(comparison == "PTEN" & protein %in% carbo.sig & treat != "TMZ") %>% 
+  ggplot(aes(x = r, y = -log10(pval), label = protein, color = treat))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5)+
+  geom_point()+
+  # scale_y_log10()+
+  geom_text_repel(max.overlaps = 20, max.iter = 10^9)+
+  facet_wrap(vars(treat))+
+  theme(legend.position = "none")+
+  labs(x = "PTEN Correlation")
+
+```
+
+##plot FADD correlations
+```{r}
+
+c1.res %>% 
+  filter(comparison == 'FADD') %>% 
+  ggplot(aes(x = r, y = -log10(pval), label = protein))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  geom_point()+
+  theme_cowplot(8)+
+  geom_text_repel(max.overlaps = 20)+
+  labs(x = "FADD Correlation")+
+  geom_text(aes(x = 0.8, y = -log10(0.05)-0.5, label = "p = 0.05"), color = "red", size = 6/.pt)
+
+c1.fadd <- c1.res %>% 
+  filter(comparison == "FADD") %>%
+  top_n(nrow(.), -r) %>% 
+  mutate(rank = row_number(r)) %>% 
+  filter(!is.na(pval))
+
+#FADD corr by drug
+c1.res.all %>% 
+  filter(comparison == 'FADD') %>% 
+  ggplot(aes(x = r, y = -log10(pval), label = protein, color = treat))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5)+
+  geom_point(size = 0.5)+
+  theme_cowplot(8)+
+  scale_y_continuous(limits = c(0,15))+
+  geom_text_repel(data = subset(filter(c1.res.all, comparison == "FADD"), pval < 0.05), 
+                  max.overlaps = Inf, max.iter = 10^9, size = 7/.pt, box.padding = 0.1, segment.size = 0.3)+
+  facet_wrap(vars(treat))+
+  theme(legend.position = "none")+
+  labs(x = "FADD Correlation", y = expression("-log"[10]("p-value")))+
+  scale_color_okabe_ito(order = c(9, 5, 6))
+ggsave("../Chemoresistance manuscript/figure export/FADD_corr_by_drug.svg", width = 3.5, height = 2.5, units = "in")
+
+
+```
+
+##mTOR correlations
+```{r}
+c1.res.all %>% 
+  filter(comparison == 'mTOR') %>% 
+  ggplot(aes(x = r, y = -log10(pval), label = protein, color = treat))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5)+
+  geom_point(size = 0.5)+
+  theme_cowplot(7)+
+  geom_text_repel(data = filter(c1.res.all, comparison == "mTOR"), 
+                  max.overlaps = Inf, max.iter = 10^9, size = 7/.pt, box.padding = 0.1)+
+  facet_wrap(vars(treat))+
+  theme(legend.position = "none")+
+  labs(x = "mTOR Correlation", y = expression("-log"[10]("p-value")))+
+  scale_color_okabe_ito(order = c(9, 5, 6))
+
+```
+
+
+## plotting Chk2 correlations
+
+```{r fig.width = 10, fig.height=5}
+
+c1.res %>% 
+  filter(comparison == 'CHK2') %>% 
+  ggplot(aes(x = r, y = -log10(pval), label = protein))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  geom_point()+
+  # scale_y_log10()+
+  geom_text_repel(max.overlaps = 20)+
+  labs(x = "CHK2 Correlation")
+
+c1.res.all %>% 
+  filter(comparison == 'CHK2') %>% 
+  ggplot(aes(x = r, y = -log10(pval), label = protein, color = treat))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  # geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5)+
+  geom_point()+
+  # scale_y_log10()+
+  geom_text_repel(max.overlaps = 20, max.iter = 10^9)+
+  facet_wrap(vars(treat))+
+  theme(legend.position = "none")+
+  labs(x = "CHK2 Correlation")
+
+
+```
+
+## plotting general correlations
+
+```{r}
+
+prot1 <- c("FADD", "MYC", "NF-\u03BAB", "JNK", "CHK1")
+
+for(p in prot1){
+  print(
+    c1.res %>% 
+      filter(comparison == p) %>% 
+      ggplot(aes(x = r, y = -log10(pval), label = protein))+
+      geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+      geom_point()+
+      geom_text_repel(max.overlaps = Inf)+
+      labs(x = paste0(p, " Correlation"))
+  )
+  print(
+    c1.res.all %>% 
+      filter(comparison == p) %>% 
+      ggplot(aes(x = r, y = -log10(pval), label = protein, color = treat))+
+      geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+      geom_point()+
+      geom_text_repel(max.overlaps = Inf, max.iter = 10^9)+
+      facet_wrap(vars(treat))+
+      theme(legend.position = "none")+
+      labs(x = paste0(p, " Correlation"))
+  )
+}
+
+```
+
+```{r}
+c1.jnk <- c1.res.all %>% filter(comparison == "JNK")
+prot.name <- c("AKT")
+
+ggplot(c1.jnk, aes(x = r, y = -log10(pval), label = protein, color = treat))+
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", alpha = 0.5)+
+  # geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5)+
+  geom_point()+
+  geom_point(data = subset(c1.jnk, protein %in% prot.name), color = "black")+
+  geom_text_repel(data = subset(c1.jnk, protein %in% prot.name), min.segment.length = 0, color = "black")+
+  geom_text_repel(data = subset(c1.jnk, protein %!in% prot.name), min.segment.length = 0)+
+  facet_wrap(vars(treat))+
+  theme(legend.position = "none")+
+  labs(x = "JNK Correlation")
+
+```
+
+# PCA
+
+```{r fig.width=16, fig.height=10}
+library(factoextra)
+#analytes to omit:
+omit.analytes <- c("STAT1_", "MSK1_", "H2AX_", "HSP27_", "IR_", "IKKab_") 
+
+x.mat <- data_all %>%
+  select(-contains(omit.analytes)) %>% 
+  # select(to.plot) %>% 
+  apply(2, function(x) ifelse(x<0, 0, x)) %>% 
+  scale(T, T) %>% 
+  as.matrix()
+
+pca.res <- prcomp(x.mat, scale = F)
+
+biplot(pca.res)
+fviz_eig(pca.res)
+
+fviz_pca_ind(pca.res, repel = T)
+
+pca.ld <- pca.res$rotation %>% data.frame()
+scf <- 50
+pca.sc <- pca.res$x %>% data.frame()
+pca.sc <- pca.sc/scf
+
+
+pca.ld %>% 
+  ggplot(aes(x = PC1, y = PC2))+
+  geom_point()+
+  geom_text_repel(label = rownames(pca.ld))+
+  # geom_point(data = pca.sc, aes(x = PC1, y = PC2), color = "red")+
+  geom_segment(data = pca.sc, aes(x = 0, y = 0, xend = PC1, yend = 0+PC2), 
+               color = "red", alpha = 0.5, arrow = arrow(length=unit(0.01, "npc")))+
+  geom_text_repel(data = pca.sc, aes(x = PC1, y = PC2), color = "red", label = rownames(pca.sc))+
+  theme_cowplot()
+
+```
+## PCA - TMZ treated cells
+```{r fig.width=16, fig.height=10}
+library(factoextra)
+x.mat <- data_all[rows.tmz,] %>%
+  select(-contains(omit.analytes)) %>% 
+  # select(one_of(fc.filt.tmz$analyte)) %>%
+  select(analytes.keep) %>%
+  # select(to.plot) %>% 
+  apply(2, function(x) ifelse(x<0, 0, x)) %>% 
+  scale(T, T) %>% 
+  as.matrix()
+
+pca.res <- prcomp(x.mat, scale = F)
+
+biplot(pca.res)
+fviz_eig(pca.res)
+
+fviz_pca_ind(pca.res, repel = T)
+
+pca.ld <- pca.res$rotation %>% data.frame()
+scf <- 50
+pca.sc <- pca.res$x %>% data.frame()
+pca.sc <- pca.sc/scf
+
+pca_pct_exp <- summary(pca.res)$importance[2,]
+
+
+pca.ld <- pca.ld %>% rownames_to_column(var = "analyte") %>% mutate(protein = gsub("_.*", "", analyte)) %>% 
+  column_to_rownames(var = "analyte")
+
+pca.ld %>% 
+  ggplot(aes(x = PC1, y = PC2, color = protein))+
+  geom_point(size = 0.3)+
+  geom_text_repel(label = rownames(pca.ld), max.overlaps = Inf, size = 6/.pt, label.padding = 0, point.padding = 0, box.padding = 0.1, segment.size = 0.3)+
+  # geom_point(data = pca.sc, aes(x = PC1, y = PC2), color = "red")+
+  geom_segment(data = pca.sc, aes(x = 0, y = 0, xend = PC1, yend = 0+PC2, segment.size = 0.1), 
+               color = "red", alpha = 0.5, arrow = arrow(length=unit(0.01, "npc")))+
+  geom_text_repel(data = pca.sc, aes(x = PC1, y = PC2), color = "red", label = rownames(pca.sc), size = 7/.pt)+
+  theme_cowplot(7)+
+  theme(legend.position = "none")+
+  scale_x_continuous(expand = expansion(c(0.1, 0.1)))+
+  scale_y_continuous(expand = expansion(c(0.1, 0.1)))+
+  labs(x = paste("PC1 (", round(pca_pct_exp[1]*100, 1), "% of variance explained)", sep = ""), 
+       y = paste("PC2 (", round(pca_pct_exp[2]*100, 1), "% of variance explained)", sep = ""))
+ggsave("../Chemoresistance manuscript/figure export/PCA_TMZ_biplot.svg", width = 3.5, height = 3.5, units = "in")
+
+```
+
+## PCA - Carbo treated cells
+```{r fig.width=16, fig.height=10}
+x.mat <- data_all[rows.carb,] %>%
+  select(-contains(omit.analytes)) %>% 
+  # select(one_of(fc.filt.carbo$analyte)) %>%
+  select(analytes.keep) %>%
+  # select(to.plot) %>% 
+  apply(2, function(x) ifelse(x<0, 0, x)) %>% 
+  scale(T, T) %>% 
+  as.matrix()
+
+pca.res <- prcomp(x.mat, scale = F)
+
+biplot(pca.res)
+fviz_eig(pca.res)
+
+fviz_pca_ind(pca.res, repel = T)
+
+pca.ld <- pca.res$rotation %>% data.frame()
+scf <- 50
+pca.sc <- pca.res$x %>% data.frame()
+pca.sc <- pca.sc/scf
+
+
+pca.ld <- pca.ld %>% rownames_to_column(var = "analyte") %>% mutate(protein = gsub("_.*", "", analyte)) %>% 
+  column_to_rownames(var = "analyte")
+
+pca.ld %>% 
+  ggplot(aes(x = PC1, y = PC2, color = protein))+
+  geom_point()+
+  geom_text_repel(label = rownames(pca.ld), max.overlaps = Inf)+
+  # geom_point(data = pca.sc, aes(x = PC1, y = PC2), color = "red")+
+  geom_segment(data = pca.sc, aes(x = 0, y = 0, xend = PC1, yend = 0+PC2), 
+               color = "red", alpha = 0.5, arrow = arrow(length=unit(0.01, "npc")))+
+  geom_text_repel(data = pca.sc, aes(x = PC1, y = PC2), color = "red", label = rownames(pca.sc))+
+  theme_cowplot()
+
+
+```
+
+#normalized model?
+```{r}
+#what if I normalize everything by the control (DMSO) conditions?
+dat3 <- data.all.avg %>% group_by(time, Pretreat, protein) %>% 
+  mutate(norm_avg = avg-avg[Drug=="DMSO"]) %>% 
+  ungroup() %>% 
+  transmute(sample = paste0(Pretreat, " + ", Drug), time = time, protein = protein, norm_avg = norm_avg) %>% 
+  pivot_wider(names_from = c(protein, time), values_from = norm_avg) %>% 
+  dplyr::slice(match(sample_order, .$sample)) %>%
+  column_to_rownames(var = "sample")
+
+dat4 <- pheno.use %>% group_by(pretreat, treat) %>% summarise(dead = mean(dead)) %>% 
+  mutate(dead = dead - dead[treat=="DMSO"]) %>% 
+  ungroup() %>% 
+  transmute(sample = paste(pretreat, "+", treat), dead = dead)
+
+dat4 <- dat4 %>% 
+  dplyr::slice(match(sample_order, .$sample)) %>% 
+  column_to_rownames(var = "sample") %>% 
+  scale(T, T) %>% 
+  data.matrix()
+
+```
+##PLSR
+```{r}
+rows.keep <- c(rows.tmz, rows.carb) %>% sort()
+
+
+x.mat <- dat3 %>% 
+  .[rows.keep,] %>% 
+  select(-contains(omit.analytes)) %>% 
+  # select(to.plot) %>% 
+  apply(2, function(x) ifelse(x<0, 0, x)) %>% 
+  scale(T, T) %>% 
+  .[, colSums(is.na(.))==0] %>% 
+  as.matrix()
+
+y.mat <- dat4 %>% 
+  .[rows.keep,]
+
+# pheatmap(x.mat, cluster_rows = T, cluster_cols = T, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA)
+
+mydata <- data.frame(Y=I(y.mat),X=I(x.mat))
+pls1 <- plsr(Y~X, scale=F, data=mydata, validation = "LOO", method="kernelpls") # generate PLSR model
+
+sc <- scores(pls1)
+ld <- loadings(pls1)
+Ysc <-Yscores(pls1)
+Yld <- Yloadings(pls1)
+
+m1.ld <- ld[,]
+
+# plot biplot of scores and loadings - full model
+## LV1 vs LV2
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,2], alpha=0.5))+
+  #  geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+  geom_text(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = "Cell Death")+
+  labs(title="Unfiltered Model", 
+       x="LV1", 
+       y="LV2")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,2]), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3, max.overlaps = 10)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+
+# ggsave("PLSR_full LV1 vs LV2.png", width = 8, height = 5)
+
+## LV1 vs LV3
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,3], alpha=0.5))+
+  #  geom_point(aes(x=Yld[,1], y=Yld[,3], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), color="blue", label = "Cell Death")+
+  labs(title="", 
+       x="LV1", 
+       y="LV3")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,3]), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+# ggsave("PLSR_full LV1 vs LV3.png", width = 8, height = 5)
+
+
+## symbolic plot
+m1.ld.1 <- m1.ld %>% data.frame() %>% 
+  mutate(analyte = rownames(.)) %>% 
+  mutate(protein = gsub("_[0-9]{1,}", "", analyte)) %>% 
+  mutate(kit = case_when(
+    protein %in% proteins.dna ~ "DNA damage",
+    protein %in% proteins.akt ~ "Akt/mTOR",
+    protein %in% proteins.mapk ~ "MAPK",
+    protein %in% proteins.nfkb ~ "NF-kB"
+  ))
+
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.ld.1, aes(x=Comp.1, y=Comp.2, color = kit), size = 2)+
+  #  geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+  geom_text(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = "Cell Death")+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  # geom_text_repel(aes(x=ld[,1], y=ld[,2]), 
+  #                 label=rownames(ld),
+  #                 color="#222222",
+  #                 size=3, max.overlaps = 10)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "right"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+
+
+# plot R2X, R2Y, Q2Y
+pls1res <- rq_func(pls1)
+R2X <- pls1res$R2X; R2X_cum <- pls1res$R2X.cum
+R2Y <- pls1res$R2Y; R2Y_cum <- pls1res$R2Y.cum
+Q2Y_cum <- pls1res$Q2Y.cum 
+rq2_cum <- cbind(R2X_cum,R2Y_cum,Q2Y_cum); colnames(rq2_cum) <- c("R2X","R2Y","Q2Y")
+comp <- which.max(Q2Y_cum) # number of components for best predictive power (based on Q2Y)
+R2X_cum[comp]
+R2Y_cum[comp]
+Q2Y_cum[comp]
+
+#plot(pls1, ncomp=comp, asp=1, line=T, xlab="Actual", ylab="Predicted", main="Parity plots")
+#plot(pls1res$R2X.cum, ylab="R2X", xlab="# LVs")
+#plot(pls1res$R2Y.cum, ylab="R2Y", xlab="# LVs")
+#plot(pls1res$Q2Y.cum, ylab="Q2Y", xlab="# LVs")
+#matplot(rq2_cum, pch=c("X","Y","Q"), cex=1, col=c("red","blue","green"), ylab="% var. expl.", xlab="# PCs")
+rq2_cum %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_cum))) %>% 
+  ggplot(aes(ncomp, value, fill=name, color=name, shape=name)) +
+  #    geom_vline(xintercept = comp, linetype="dashed") + 
+  geom_point(size=3) + #geom_line(size=1) +
+  theme_cowplot(18) + scale_x_continuous(n.breaks=10) +
+  labs(x="# LVs", y="% var. expl.", color="Metric", shape="Metric", fill="Metric")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  scale_y_continuous(limits = c(0,100))
+# ggsave("model_metrics_full.png", width = 5, height = 5)
+
+# x-matrix heatmap
+# pheatmap(x.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA, filename = "x_matrix_full_heatmap.png", width = ncol(x.mat)/5, height = nrow(x.mat)/2)
+
+# y-matrix heatmap
+# pheatmap(y.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100), filename = "y_matrix_full_heatmap.png", width = 1, height = nrow(x.mat)/2)
+
+#VIP score calculations
+vip.scores <- VIP(pls1, opt.comp = comp) %>% as.data.frame()
+colnames(vip.scores) <- "score"
+vip.scores <- vip.scores %>% rownames_to_column("analyte")
+vip.ld <- vip.scores %>% mutate("PC1" = ld[,1])
+
+
+#plot PC1 values vs VIP score
+ggplot(vip.ld, aes(x = PC1, y = score, label = analyte))+
+  geom_point(size = 2, alpha = 0.5)+
+  geom_text_repel()+
+  theme_cowplot(18) + 
+  labs(x="LV1", y="VIP score")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  geom_hline(yintercept = 1, color = "#333333", linetype = "dashed", alpha = 0.7) %>% 
+  print()
+# ggsave("vip_vs_LV1_full.png")
+
+
+#plot VIP scores
+vip.scores %>% 
+  #  filter(score>1) %>% 
+  arrange(score) %>% 
+  ggplot(aes(y=reorder(analyte, score), x=score))+
+  geom_bar(stat="identity")+
+  theme_cowplot()+
+  #  geom_hline(yintercept = 1, linetype = "dashed")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  labs(x = "VIP score", y = element_blank())
+# ggsave("VIP_full.png", width = 5, height = 12)
+
+
+## scores matrix
+sc.dat <- sc[,1:2] %>% 
+  data.frame %>% 
+  rownames_to_column(var = "sample") %>% 
+  mutate(pretreat = case_when(
+    grepl("NP", sample) ~ "NP",
+    grepl("TGFb", sample) ~ "TGFb",
+    grepl("TNFa", sample) ~ "TNFa",
+    grepl("Hypoxia", sample) ~ "Hypoxia",
+    T ~ "WHAT"
+  ), 
+  treat = case_when(
+    grepl("DMSO", sample) ~ "DMSO",
+    grepl("TMZ", sample) ~ "TMZ",
+    grepl("CARB", sample) ~ "CARB",
+    T ~ "WHAT"
+  ))
+
+sc.dat$pretreat <- sc.dat$pretreat %>% factor(pretreat.order)
+sc.dat$treat <- sc.dat$treat %>% factor(drug.order)
+sc.fact <- 30
+
+## scores and loadings plot:
+
+m1.ld.1 <- left_join(m1.ld.1, vip.scores)
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  # geom_point(data = sc.dat, aes(x=Comp.1, y=Comp.2, alpha = pretreat, shape = treat), size = 3)+
+  geom_text(data = sc.dat, aes(x=Comp.1, y=Comp.2, label = sample), size = 3)+
+  # geom_text_repel(aes(x=sc[,1], y=sc[,2]), color="darkblue", label = rownames(Ysc))+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  geom_point(data = m1.ld.1, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit))+
+  # geom_point(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), alpha=0.5)+
+  geom_text_repel(data = m1.ld.1, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit), size = 3,
+                  label=m1.ld.1$analyte,
+                  # size=3, 
+                  max.overlaps = 20, max.iter = 10^8)+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]),
+                  label="Cell Death", size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000")
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+x.mat2 <- x.mat
+y.mat2 <- y.mat
+```
+
+## filtered plsr
+
+```{r eval=FALSE, fig.height=8, fig.width=12, include=FALSE}
+##PLSR
+x.mat <- x.mat2 %>% 
+  data.frame() %>% 
+  select(analytes.keep) %>% 
+  as.matrix()# %>% scale(T, T)
+y.mat <- y.mat2 %>% 
+  as.matrix()# %>% scale(T, T)
+
+mydata <- data.frame(Y=I(y.mat),X=I(x.mat))
+pls1 <- plsr(Y~X, scale=F, data=mydata, validation = "LOO", method="kernelpls") # generate PLSR model
+
+sc <- scores(pls1)
+ld <- loadings(pls1)
+Ysc <-Yscores(pls1)
+Yld <- Yloadings(pls1)
+
+#plot biplot of scores and loadings - filtered
+##LV1 vs LV2
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,2], alpha=0.5))+
+  #  geom_point(aes(x=Yld[,1], y=Yld[,2], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="blue", label = rownames(Yld), size = 4)+
+  labs(title="VIP-enriched Model", 
+       x="LV1", 
+       y="LV2")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,2]), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+# ggsave("PLSR_filtered LV1 vs LV2.png", width = 8, height = 5)
+
+##LV1 vs LV3
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,3], alpha=0.5))+
+  #  geom_point(aes(x=Yld[,1], y=Yld[,3], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), color="blue", label = "Cell Death")+
+  labs(title="", 
+       x="LV1", 
+       y="LV3")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,3]), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+#plot R2X, R2Y, Q2Y
+pls1res <- rq_func(pls1)
+R2X <- pls1res$R2X; R2X_cum <- pls1res$R2X.cum
+R2Y <- pls1res$R2Y; R2Y_cum <- pls1res$R2Y.cum
+Q2Y_cum <- pls1res$Q2Y.cum 
+rq2_cum <- cbind(R2X_cum,R2Y_cum,Q2Y_cum); colnames(rq2_cum) <- c("R2X","R2Y","Q2Y")
+comp <- which.max(Q2Y_cum) # number of components for best predictive power (based on Q2Y)
+R2X_cum[comp]
+R2Y_cum[comp]
+Q2Y_cum[comp]
+
+#plot(pls1, ncomp=comp, asp=1, line=T, xlab="Actual", ylab="Predicted", main="Parity plots")
+#plot(pls1res$R2X.cum, ylab="R2X", xlab="# PCs")
+#plot(pls1res$R2Y.cum, ylab="R2Y", xlab="# PCs")
+#plot(pls1res$Q2Y.cum, ylab="Q2Y", xlab="# PCs")
+#matplot(rq2_cum, pch=c("X","Y","Q"), cex=1, col=c("red","blue","green"), ylab="% var. expl.", xlab="# PCs")
+rq2_cum %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_cum))) %>% 
+  ggplot(aes(ncomp, value, fill=name, color=name, shape=name)) +
+  #    geom_vline(xintercept = comp, linetype="dashed") + 
+  geom_point(size=3) + #geom_line(size=1) +
+  theme_cowplot(18) + scale_x_continuous(n.breaks=10) +
+  labs(x="# LVs", y="% var. expl.", color="Metric", shape="Metric", fill="Metric")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  scale_y_continuous(limits = c(0,100))
+# ggsave("model_metrics_filtered.png", width = 5, height = 5)
+
+# x-matrix heatmap
+pheatmap(x.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA)
+
+# y-matrix heatmap
+pheatmap(y.mat, cluster_rows = F, cluster_cols = F, color = colorRampPalette(c("blue","white", "red"))(100))
+
+#VIP score calculations
+vip.scores <- VIP(pls1, opt.comp = comp) %>% as.data.frame()
+colnames(vip.scores) <- "score"
+vip.scores <- vip.scores %>% rownames_to_column("analyte")
+
+#plot VIP scores
+vip.scores %>% 
+  #  filter(score>1) %>% 
+  arrange(score) %>% 
+  ggplot(aes(y=reorder(analyte, score), x=score))+
+  geom_bar(stat="identity")+
+  theme_cowplot()+
+  #  geom_hline(yintercept = 1, linetype = "dashed")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  labs(x = "VIP score", y = element_blank())
+
+sc.dat <- sc[,1:2] %>% 
+  data.frame %>% 
+  rownames_to_column(var = "sample") %>% 
+  mutate(pretreat = case_when(
+    grepl("NP", sample) ~ "NP",
+    grepl("TGFb", sample) ~ "TGFb",
+    grepl("TNFa", sample) ~ "TNFa",
+    grepl("Hypoxia", sample) ~ "Hypoxia",
+    T ~ "WHAT"
+  ), 
+  treat = case_when(
+    grepl("DMSO", sample) ~ "DMSO",
+    grepl("TMZ", sample) ~ "TMZ",
+    grepl("CARB", sample) ~ "CARB",
+    T ~ "WHAT"
+  ))
+
+sc.dat$pretreat <- sc.dat$pretreat %>% factor(pretreat.order)
+sc.dat$treat <- sc.dat$treat %>% factor(drug.order)
+sc.fact <- 30
+
+## scores and loadings plot:
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = sc.dat, aes(x=Comp.1, y=Comp.2, color = pretreat, shape = treat), size = 3)+
+  # geom_text_repel(aes(x=sc[,1], y=sc[,2]), color="darkblue", label = rownames(Ysc))+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  geom_point(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), alpha=0.5)+
+  geom_text_repel(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000")
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+## other scores and loadings plot
+
+m2.ld <- ld[,] %>% data.frame() %>% 
+  mutate(analyte = rownames(.)) %>% 
+  mutate(protein = gsub("_[0-9]{1,}", "", analyte)) %>% 
+  mutate(kit = case_when(
+    protein %in% proteins.dna ~ "DNA damage",
+    protein %in% proteins.akt ~ "Akt/mTOR",
+    protein %in% proteins.mapk ~ "MAPK",
+    protein %in% proteins.nfkb ~ "NF-kB"
+  ))
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  # geom_point(data = sc.dat, aes(x=Comp.1, y=Comp.2, alpha = pretreat, shape = treat), size = 3)+
+  geom_text(data = sc.dat, aes(x=Comp.1, y=Comp.2, label = sample), size = 3)+
+  # geom_text_repel(aes(x=sc[,1], y=sc[,2]), color="darkblue", label = rownames(Ysc))+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  geom_point(data = m2.ld, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit), size = 2)+
+  # geom_point(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), alpha=0.5)+
+  geom_text_repel(data = m2.ld, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit),
+                  label=rownames(m2.ld),
+                  size=3, max.overlaps = 20, max.iter = 10^8)+
+  geom_text_repel(aes(x=Yld[,1]*sc.fact, y=Yld[,2]*sc.fact),
+                  label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000")
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+
+vip.ld <- vip.scores %>% mutate("PC1" = ld[,1])
+
+
+#plot LV1 values vs VIP score
+vip.ld %>% 
+  ggplot(aes(x = PC1, y = score, label = analyte))+
+  geom_point(size = 2, alpha = 0.5)+
+  geom_text_repel()+
+  theme_cowplot(18) + 
+  labs(x="LV1", y="VIP score")+
+  theme(panel.background = element_rect(color = "#000000"))
+# ggsave("vip_vs_LV1_filtered.png")
+```
+
+#TGFb data heatmap
+```{r fig.width = 16}
+tgfb.dat <- data_all %>% .[c(1,4,2,5,3,6),] %>% 
+  select(-contains(omit.analytes), -contains("0")) %>% 
+  apply(2, function(x) ifelse(x<0, 0, x)) %>% 
+  scale(T, T) %>% 
+  as.matrix()
+
+pheatmap(tgfb.dat, cluster_rows = F, cluster_cols = T, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA)
+
+
+
+
+
+```
+
+#PLSR - no TGFb
+```{r}
+
+rows.dmso <- c(1, 4, 7, 10)
+rows.tmz <- c(2,5,8,11)
+rows.carb <- c(3,6,9,12)
+rows.np <- c(1:3)
+rows.tgfb <- c(4:6)
+
+rows.keep <- -rows.tgfb %>% sort()
+
+#analytes to omit:
+omit.analytes <- c("STAT1_", "MSK1_", "H2AX_", "HSP27_", "IR_", "IKKab_") # omitting these analytes because of low/negative signal
+
+##PLSR
+x.mat <- data_all %>%
+  .[rows.keep,] %>% 
+  select(-contains(omit.analytes)) %>% 
+  # select(to.plot) %>% 
+  apply(2, function(x) ifelse(x<0, 0, x)) %>% 
+  scale(T, T) %>% 
+  as.matrix()
+
+y.mat <- pheno.mat %>% .[rows.keep,]
+
+pheatmap(x.mat, cluster_rows = T, cluster_cols = T, color = colorRampPalette(c("blue","white", "red"))(100), border_color = NA)
+
+mydata <- data.frame(Y=I(y.mat),X=I(x.mat))
+pls1 <- plsr(Y~X, scale=F, data=mydata, validation = "LOO", method="kernelpls") # generate PLSR model
+
+sc <- scores(pls1)
+ld <- loadings(pls1)
+Ysc <-Yscores(pls1)
+Yld <- Yloadings(pls1)
+
+m1.ld <- ld[,]
+
+
+# library(ropls)
+# opls1 <- opls(x.mat, y.mat)
+
+# plot biplot of scores and loadings - full model
+## LV1 vs LV2
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,2], alpha=0.5), size = 1)+
+  geom_label_repel(aes(x=Yld[,1], y=Yld[,2]), color="darkred", label = "Cell death", size = 8/.pt)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="darkred", shape = "triangle")+
+  labs(x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,2]),
+                  label=rownames(ld),
+                  color="#222222",
+                  max.overlaps = Inf,
+                  size = 6/.pt,
+                  force_pull = 10,
+                  force = 0.1)+
+  theme_cowplot(font_size = 8, line_size = 0.2) +
+  theme(
+    panel.background = element_rect(color = "#000000", size = 0.75),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+
+## LV1 vs LV3
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(aes(x=ld[,1], y=ld[,3], alpha=0.5))+
+  #  geom_point(aes(x=Yld[,1], y=Yld[,3], alpha=0.5, color = "black"))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), color="blue", label = "Cell Death")+
+  labs(title="", 
+       x="LV1", 
+       y="LV3")+
+  geom_text_repel(aes(x=ld[,1], y=ld[,3]), 
+                  label=rownames(ld),
+                  color="#222222",
+                  size=3)+
+  #  geom_text_repel(aes(x=Yld[,1], y=Yld[,3]), 
+  #            label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000"),
+    legend.position = "none"
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+
+## symbolic plot
+m1.ld.1 <- m1.ld %>% data.frame() %>% 
+  mutate(analyte = rownames(.)) %>% 
+  mutate(protein = gsub("_[0-9]{1,}", "", analyte)) %>% 
+  mutate(kit = case_when(
+    protein %in% proteins.dna ~ "DNA damage",
+    protein %in% proteins.akt ~ "AKT/mTOR",
+    protein %in% proteins.mapk ~ "MAPK",
+    protein %in% proteins.nfkb ~ "NF-\u03BAB"
+  ))
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_point(data = m1.ld.1, aes(x=Comp.1, y=Comp.2, color = kit, shape = kit), size = 1)+
+  scale_color_okabe_ito(order = c(2, 3, 5, 6))+
+  geom_text_repel(aes(x=Yld[,1], y=Yld[,2]), color="black", label = "Cell Death", size = 7/.pt)+
+  geom_point(aes(x=Yld[,1], y=Yld[,2]), color="black", size = 1, shape = "diamond")+
+  labs(title="", 
+       x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+
+
+# plot R2X, R2Y, Q2Y
+pls1res <- rq_func(pls1)
+R2X <- pls1res$R2X; R2X_cum <- pls1res$R2X.cum
+R2Y <- pls1res$R2Y; R2Y_cum <- pls1res$R2Y.cum
+Q2Y_cum <- pls1res$Q2Y.cum 
+rq2_cum <- cbind(R2X_cum,R2Y_cum,Q2Y_cum); colnames(rq2_cum) <- c("R2X","R2Y","Q2Y")
+comp <- which.max(Q2Y_cum) # number of components for best predictive power (based on Q2Y)
+R2X_cum[comp]
+R2Y_cum[comp]
+Q2Y_cum[comp]
+
+#bar plot
+rq2_cum %>% data.frame(ncomp=seq(1,nrow(.))) %>% pivot_longer(-ncomp) %>% mutate(name=factor(name,levels=colnames(rq2_cum))) %>% 
+  ggplot(aes(ncomp, value, fill=name)) +
+  geom_bar(stat = "identity")+
+  theme_cowplot(8) + scale_x_continuous(n.breaks=5) +
+  # theme(panel.background = element_rect(color = "#000000"))+
+  scale_fill_okabe_ito(order = c(6,5,3))+
+  scale_x_continuous(limits = c(0.5,5.5))+
+  scale_y_continuous(limits = c(0,1), expand = c(0,0))+
+  facet_wrap(~name)+
+  labs(x = "Number of components", y = "Model fit coefficient")+
+  theme(legend.position = "none")
+
+#VIP score calculations
+vip.scores <- VIP(pls1, opt.comp = comp) %>% as.data.frame()
+colnames(vip.scores) <- "score"
+vip.scores <- vip.scores %>% rownames_to_column("analyte")
+vip.ld <- vip.scores %>% mutate("PC1" = ld[,1])
+
+
+#plot PC1 values vs VIP score
+ggplot(vip.ld, aes(x = PC1, y = score, label = analyte))+
+  geom_point(alpha = 0.5)+
+  geom_text_repel(data = subset(vip.ld, score>1), size = 7/.pt, max.overlaps = Inf)+
+  theme_cowplot(8) + 
+  labs(x="LV1", y="VIP score")+
+  theme1+
+  scale_y_continuous(expand = expansion(mult=c(0.05, 0.15)))+
+  scale_x_continuous(expand = expansion(mult=c(0.1, 0.1)))+
+  geom_hline(yintercept = 1, color = "#333333", linetype = "dashed", alpha = 0.7)
+
+
+#plot VIP scores
+vip.scores %>% 
+  #  filter(score>1) %>% 
+  arrange(score) %>% 
+  ggplot(aes(y=reorder(analyte, score), x=score))+
+  geom_bar(stat="identity")+
+  theme_cowplot()+
+  #  geom_hline(yintercept = 1, linetype = "dashed")+
+  theme(panel.background = element_rect(color = "#000000"))+
+  labs(x = "VIP score", y = element_blank())
+
+
+## scores matrix
+sc.dat <- sc[,1:2] %>% 
+  data.frame %>% 
+  rownames_to_column(var = "sample") %>% 
+  mutate(pretreat = case_when(
+    grepl("NP", sample) ~ "NP",
+    grepl("TGFb", sample) ~ "TGF\u03B2",
+    grepl("TNFa", sample) ~ "TNF\u03B1",
+    grepl("Hypoxia", sample) ~ "Hypoxia",
+    T ~ "WHAT"
+  ), 
+  treat = case_when(
+    grepl("DMSO", sample) ~ "DMSO",
+    grepl("TMZ", sample) ~ "TMZ",
+    grepl("CARB", sample) ~ "CARBO",
+    T ~ "WHAT"
+  ))
+
+pre_ord_form <- c("NP", "TGF\u03B2", "TNF\u03B1", "Hypoxia")
+trt_ord_form <- c("DMSO", "TMZ", "CARBO")
+sc.dat$pretreat <- sc.dat$pretreat %>% factor(pre_ord_form)
+sc.dat$treat <- sc.dat$treat %>% factor(trt_ord_form)
+sc.fact <- 50
+
+## scores and loadings plot:
+
+m1.ld.1 <- left_join(m1.ld.1, vip.scores)
+
+ggplot()+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  # geom_point(data = sc.dat, aes(x=Comp.1, y=Comp.2, alpha = pretreat, shape = treat), size = 3)+
+  geom_text(data = sc.dat, aes(x=Comp.1, y=Comp.2, label = sample), size = 3)+
+  # geom_text_repel(aes(x=sc[,1], y=sc[,2]), color="darkblue", label = rownames(Ysc))+
+  labs(title="", 
+       x="LV1", 
+       y="LV2")+
+  geom_point(data = m1.ld.1, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit, size = score/10))+
+  # geom_point(aes(x=ld[,1]*sc.fact, y=ld[,2]*sc.fact), alpha=0.5)+
+  geom_text_repel(data = m1.ld.1, aes(x=Comp.1*sc.fact, y=Comp.2*sc.fact, color = kit, size = score/10),
+                  label=m1.ld.1$analyte,
+                  # size=3, 
+                  max.overlaps = 20, max.iter = 10^8)+
+  geom_text_repel(aes(x=Yld[,1]*sc.fact, y=Yld[,2]*sc.fact),
+                  label=rownames(Yld), size=3, color="blue")+
+  theme_cowplot() +
+  scale_size(
+    limits=c(0,1),
+  )+
+  theme(
+    panel.background = element_rect(color = "#000000")
+  ) +
+  scale_x_continuous(expand=expansion(mult=.1))
+
+# scores plot
+ggplot(data = sc.dat, aes(x = Comp.1, y = Comp.2, label = paste(pretreat, treat, sep = "+")))+
+  geom_point(size = 1)+
+  geom_text_repel(size = 7/.pt, force_pull = 10)+
+  geom_hline(yintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "#333333", linetype = "dashed", alpha = 0.7) +
+  labs(title="", 
+       x="Latent Variable 1 (LV1)", 
+       y="Latent Variable 2 (LV2)")+
+  theme1+
+  theme(legend.position = "top",
+        legend.title = element_blank(), 
+        legend.spacing.x = unit(0.05, "mm"))+y
+  scale_x_continuous(expand = expansion(mult = 0.1))+
+  scale_y_continuous(expand = expansion(mult = 0.1))
+
+
+```
+
