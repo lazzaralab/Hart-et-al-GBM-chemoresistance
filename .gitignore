@@ -1,0 +1,15 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.docx
+*.txt
+*.html
+*.pptx
+*.pdf
+*.png
+*.rds
+*.tsv
+*.ai
+*.tif
+*.svg

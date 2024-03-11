@@ -1,0 +1,2145 @@
+---
+title: "GBM chemoresitance manuscript figures"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+library(cowplot)
+library(ggpubr)
+library(pheatmap)
+library(tidyverse)
+library(ggokabeito)
+library(ggstatsplot)
+library(ggbeeswarm)
+library(ggsignif)
+library(emmeans)
+```
+
+```{r Clear environment}
+### Clear R workspace:
+rm(list=ls())
+```
+
+```{r Check and set working directory}
+### Check current working directory:
+cwd <- getwd()
+cwd
+### Set working directory:
+setwd(cwd) # Set current working directory to location of this notebook for easier handling and saving of data associated with the notebook
+```
+#define functions
+```{r}
+
+theme1 <- theme_cowplot(font_size = 8, line_size = 0.2) +
+  theme(
+    panel.background = element_rect(color = "#000000", linewidth = 0.75)
+  )
+
+```
+
+#okabe-ito palette
+```{r eval=FALSE, include=FALSE}
+#okabe ito palette
+
+a1 <- data.frame(a = c(1:9)) %>% mutate(b = factor(a))
+
+ggplot(a1, aes(x=a, y = 0, color = b))+
+  geom_point(size = 8)+
+  scale_color_okabe_ito()
+
+#I'm putting this function here for now because it doesn't work but I want it to. 
+anova_2 <- function(data1, sep_var, var2, var3){
+  ###this is a function to make running anovas easier. Pass the function the following:
+  #data1 = the data frame containing data to be analyzed
+  #sep_var = the name of the column to split the anova by. Essentially, the thing we don't care about comparing
+  #var2 = the dependent variable. i.e., the thing we want to know about
+  #var3 = the dependednt variable we care about
+  
+  c1 <- unique(factor(data1[[sep_var]]))
+  for (v in c1) {
+    anova1 <- aov(sym(var2) ~ sym(var3), data = data1 %>% filter(treat == v))
+    summary(anova1)
+    hsd1 <- TukeyHSD(anova1)
+    hsd1
+  }
+}
+```
+
+#phenotype plots
+##pretreat
+```{r eval=FALSE, include=FALSE}
+
+pheno.3d.import <- read_excel("../08-22 U87L luminex experiment/08-23-22 U87L big experiment flow results.xlsx", sheet = "day 3")
+
+pheno.3d <- pheno.3d.import %>% 
+  dplyr::select(pretreat, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(pretreat, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+pheno1 <- pheno.3d %>% group_by(pretreat, treat) %>% 
+  summarise(avg_dead = mean(dead), stdev = sd(dead))
+
+pre1 <- c("None", "TGF\u03B2", "TNF\u03B1", "Hypoxia")
+trt1 <- c("DMSO", "TMZ", "CARBO")
+
+pheno1$pretreat <- pheno1$pretreat %>% gsub("TGFb", "TGF\u03B2", .) %>% gsub("TNFa", "TNF\u03B1", .) %>% gsub("NP", "None", .) %>% factor(pre1)
+pheno1$treat <- pheno1$treat %>% gsub("CARB", "CARBO", .) %>% factor(trt1)
+
+pheno1 %>% ggplot(aes(x = pretreat, y = avg_dead, fill = pretreat))+
+  geom_bar(stat = "identity", position ="dodge", color = "black")+
+  geom_errorbar(aes(ymax = avg_dead+stdev, ymin = avg_dead-stdev), width = 0.3)+
+  facet_wrap(~treat)+
+  theme_cowplot(8)+
+  labs(x = "Pretreatment", y = "% dead")+
+  scale_y_continuous(expand = c(0,0), limits = c(0,100))+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_fill_okabe_ito(order = c(9, 5, 6, 3))
+# ggsave("figure export/pheno_barplot.svg", width = 4, height = 3, units = "in")
+
+
+
+##calculating statistical significance using one-way ANOVA + Tukey post-hoc
+anova1 <- aov(dead ~ pretreat, data = pheno.3d %>% filter(treat == "DMSO"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno.3d %>% filter(treat == "TMZ"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno.3d %>% filter(treat == "CARB"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+
+```
+##7.29.22 pretreat data
+```{r}
+##this is the data to use for the paper
+pheno.import <- read_excel("../07-29-22 U87L pretreat TMZ carb cell death results.xlsx", range = "A1:H13")
+
+pheno <- pheno.import %>% 
+  dplyr::select(pretreat, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(pretreat, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+# pheno1 <- pheno %>% group_by(pretreat, treat) %>% 
+#   summarise(avg_dead = mean(dead), stdev = sd(dead))
+
+pre1 <- c("None", "TGF\u03B2", "TNF\u03B1", "Hypoxia")
+trt1 <- c("DMSO", "TMZ", "CARBO")
+
+pheno$pretreat <- pheno$pretreat %>% 
+  gsub("TGFB", "TGF\u03B2", .) %>% 
+  gsub("TNFA", "TNF\u03B1", .) %>% 
+  gsub("NP", "None", .) %>% 
+  gsub("HYPOXIA", "Hypoxia", .) %>% 
+  factor(pre1)
+pheno$treat <- pheno$treat %>% gsub("CARB", "CARBO", .) %>% factor(trt1)
+
+pheno %>% ggplot(aes(x = pretreat, y = dead, fill = pretreat))+
+  stat_summary(mapping = aes(x = pretreat, y = dead), geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(mapping = aes(x = pretreat, y = dead), geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  facet_wrap(~treat)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = c(0,0), limits = c(0,130), breaks = c(0, 25, 50, 75, 100))+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_fill_okabe_ito(order = c(9, 5, 6, 3))
+ggsave("figure export/pheno_barplot_2.svg", width = 3.5, height = 2.5, units = "in")
+
+
+
+##calculating statistical significance using one-way ANOVA + Tukey post-hoc
+anova1 <- aov(dead ~ pretreat, data = pheno %>% filter(treat == "DMSO"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno %>% filter(treat == "TMZ"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ pretreat, data = pheno %>% filter(treat == "CARBO"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+
+
+```
+
+##cotreat
+```{r eval=FALSE, include=FALSE}
+pheno.cotreat <- read_excel("../01-28-23 U87L co-treat cell death results.xlsx")
+
+pheno.co <- pheno.cotreat %>% 
+  dplyr::select(cotreat, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(cotreat, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+pheno2 <- pheno.co %>% group_by(cotreat, treat) %>% 
+  summarise(avg_dead = mean(dead), stdev = sd(dead))
+
+co1 <- c("None", "TGF\u03B2", "TNF\u03B1", "Hypoxia")
+trt1 <- c("DMSO", "TMZ", "CARBO")
+
+pheno2$cotreat <- pheno2$cotreat %>% factor(co1)
+pheno2$treat <- pheno2$treat %>% factor(trt1)
+
+pheno2 %>% ggplot(aes(x = cotreat, y = avg_dead, fill = cotreat))+
+  geom_bar(stat = "identity", position ="dodge")+
+  geom_errorbar(aes(ymax = avg_dead+stdev, ymin = avg_dead-stdev), width = 0.3)+
+  facet_wrap(~treat)+
+  theme_cowplot(8)+
+  labs(x = "Cotreatment", y = "% dead")+
+  scale_y_continuous(expand = c(0,0), limits = c(0,100))+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_fill_okabe_ito(order = c(9, 5, 6, 3))
+ggsave("figure export/pheno_cotreat_barplot.svg", width = 4, height = 3, units = "in")
+
+##calculating statistical significance using one-way ANOVA + Tukey post-hoc
+anova1 <- aov(dead ~ cotreat, data = pheno.co %>% filter(treat == "DMSO"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ cotreat, data = pheno.co %>% filter(treat == "TMZ"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+anova1 <- aov(dead ~ cotreat, data = pheno.co %>% filter(treat == "CARBO"))
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+
+```
+#FADD data
+##FADD si cell death
+```{r}
+dat1 <- read_excel("../01-15-23 U87L FADD si TMZ carbo cell death results.xlsx")
+
+dat2 <- dat1 %>% 
+  dplyr::select(siRNA, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(siRNA, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2
+
+dat3$siRNA <- dat3$siRNA %>% gsub("ctrl si", "Control siRNA", .) %>% gsub("FADD si", "FADD siRNA", .) %>% factor(c("Control siRNA", "FADD siRNA"))
+dat3$treat <- dat3$treat %>% gsub("Carbo", "CARBO", .) %>% factor(c("DMSO", "TMZ", "CARBO"))
+
+dat3 %>% ggplot(aes(x = siRNA, y = dead, fill = siRNA))+
+  stat_summary(mapping = aes(x = siRNA, y = dead), geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(mapping = aes(x = siRNA, y = dead), geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  facet_wrap(~treat, switch = "x")+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = c(0.05, 0.95), 
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/FADD_siRNA_cell_death.svg", width = 2.3, height = 2, units = "in")
+
+for (t in unique(factor(dat2$treat))) {
+  c1 <- dat2 %>% filter(siRNA == "ctrl si", treat == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(siRNA == "FADD si", treat == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+}
+
+```
+
+##U87L Myc si cell death
+```{r}
+dat1 <- read_excel("../02-06-23 U87L cMyc kd cell death results.xlsx")
+
+dat2 <- dat1 %>% 
+  dplyr::select(siRNA, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(siRNA, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2 
+
+dat3$siRNA <- dat3$siRNA %>% gsub("ctrl si", "Control siRNA", .) %>% gsub("cMyc si", "MYC siRNA", .) %>% factor(c("Control siRNA", "MYC siRNA"))
+dat3$treat <- dat3$treat %>% gsub("Carbo", "CARBO", .) %>% factor(c("DMSO", "TMZ", "CARBO"))
+
+dat3 %>% ggplot(aes(x = siRNA, y = dead, fill = siRNA))+
+  stat_summary(mapping = aes(x = siRNA, y = dead), geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(mapping = aes(x = siRNA, y = dead), geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  facet_wrap(~treat, switch = "x")+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = c(0.05, 0.95), 
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5,3))
+ggsave("figure export/U87L_cMyc_siRNA_cell_death.svg", width = 2.3, height = 2, units = "in")
+
+for (t in unique(factor(dat2$treat))) {
+  c1 <- dat2 %>% filter(siRNA == "ctrl si", treat == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(siRNA == "cMyc si", treat == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+}
+```
+##LN18 Myc si cell death
+```{r}
+dat1 <- read_excel("../10-01-23 LN18 MYC si TMZ CARBO cell death results.xlsx")
+
+dat2 <- dat1 %>% 
+  dplyr::select(siRNA, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(siRNA, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2 
+
+dat3$siRNA <- dat3$siRNA %>% gsub("Control siRNA", "Control siRNA", .) %>% gsub("MYC siRNA", "MYC siRNA", .) %>% factor(c("Control siRNA", "MYC siRNA"))
+dat3$treat <- dat3$treat %>% factor(c("DMSO", "TMZ", "CARBO"))
+
+dat3 %>% ggplot(aes(x = siRNA, y = dead, fill = siRNA))+
+  stat_summary(mapping = aes(x = siRNA, y = dead), geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(mapping = aes(x = siRNA, y = dead), geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  facet_wrap(~treat, switch = "x")+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = c(0.05, 0.95), 
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5,3))
+ggsave("figure export/LN18_cMyc_siRNA_cell_death.svg", width = 2.3, height = 2, units = "in")
+
+for (t in unique(factor(dat2$treat))) {
+  c1 <- dat2 %>% filter(siRNA == "Control siRNA", treat == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(siRNA == "MYC siRNA", treat == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+}
+
+```
+
+
+##FADD/MYC qPCR
+```{r}
+dat1 <- read_excel("../02-28-23 U87L FADD MYC si RTqPCR (FADD MYC).xlsx", sheet = "Plate 1", range = "C29:F35") %>% 
+  rbind(read_excel("../08-23-23 U87L FADD MYC RTqPCR.xlsx", sheet = "Plate 1", range = "C19:F22")) %>% dplyr::select(-GAPDH)
+colnames(dat1)[1] <- "siRNA"
+
+dat1$siRNA <- dat1$siRNA %>% gsub(" [1-2]", "", .)
+dat2 <- dat1 %>% pivot_longer(cols = -siRNA, names_to = "gene", values_to = "FC")
+dat2$siRNA <- dat2$siRNA %>% gsub("Ctrl", "Control", .) %>% gsub(" si", "", .)
+
+dat2 %>% filter(gene == "FADD" & siRNA!= "FADD") %>% 
+ggplot(aes(x = siRNA, y = FC, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "Normalized Fold Change", title = "FADD")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none",
+        plot.title = element_text(size = 8, face = "italic", hjust = 0.5),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/FADD_qPCR_MYCsi.svg", width = 0.8, height = 1.8, units = "in")
+
+dat2 %>% filter(gene == "MYC" & siRNA!= "MYC") %>% 
+ggplot(aes(x = siRNA, y = FC, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "Normalized Fold Change", title = "MYC")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none",
+        plot.title = element_text(size = 8, face = "italic", hjust = 0.5),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/MYC_qPCR_FADDsi.svg", width = 0.8, height = 1.8, units = "in")
+
+
+##FADD kd validation
+dat1 <- read_excel("../01-12-23 U87L PTEN FADD siRNA RTqPCR.xlsx", sheet = "Plate 1", range = "C46:F58") %>% .[7:12,-2] %>% dplyr::select(-PTEN)
+colnames(dat1)[1] <- "siRNA"
+dat1$siRNA <- dat1$siRNA %>% gsub(" A| B| C", "", .) %>% gsub("ctrl", "Control", .) %>% gsub("[1-9]", "", .) %>% gsub(" si", "\nsiRNA", .)
+
+dat1 %>% 
+  ggplot(aes(x = siRNA, y = FADD, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "Normalized Fold Change", title = "FADD")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none",
+        plot.title = element_text(size = 8, face = "italic", hjust = 0.5))+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/FADD_qPCR_FADDsi.svg", width = 1, height = 1.8, units = "in")
+
+```
+
+##MYC si validation WB
+```{r}
+dat1 <- read_excel("../10-30-23 U87L LN18 cMyc kd validation BCA WB.xlsx", sheet = "WB", range = "J1:L13") %>% .[,-2] %>% 
+  mutate(cell_line = case_when(
+    grepl("U87", sample) ~ "U87MG",
+    grepl("LN18", sample) ~ "LN18"),
+    siRNA = case_when(
+      grepl("Ctrl", sample) ~ "Control",
+      grepl("cMyc", sample) ~"MYC"
+    ))
+
+dat1$cell_line <- dat1$cell_line %>% factor(c("U87MG", "LN18"))
+dat1$siRNA <- dat1$siRNA %>% factor(c("Control", "MYC"))
+dat1 <- dat1 %>% group_by(cell_line) %>% mutate(cMyc_plot = Myc_norm/max(Myc_norm))
+  
+
+dat1 %>% 
+  ggplot(aes(x = siRNA, y = cMyc_plot, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(7)+
+  labs(x = element_blank(), y = "Normalized MYC/GAPDH")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)), breaks = c(0, 0.5, 1))+
+  theme(legend.position = "none",
+        plot.title = element_text(face = "italic", hjust = 0.5))+
+  scale_fill_okabe_ito(order = c(5, 3))+
+  facet_wrap(~cell_line)
+ggsave("figure export/Myc_kd_WB_validation.svg", width = 1.5, height = 1.3, units = "in")
+```
+
+##FADD/MYC double kd validation WB
+```{r}
+dat1 <- read_excel("../11-13-23 U87L FADD+MYC kd validation BCA WB.xlsx", sheet = "WB", range = "J1:L19") %>% 
+  mutate(siRNA = if_else(grepl("Ctrl", sample), "Control", "FADD+cMyc"))
+dat1$siRNA <- dat1$siRNA %>% factor(c("Control", "FADD+cMyc"))
+dat1 <- dat1 %>% group_by(protein) %>% mutate(to_plot = signal_norm/max(signal_norm))
+
+dat1 %>% filter(protein == "cMyc") %>% 
+  ggplot(aes(x = siRNA, y = to_plot, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(7)+
+  labs(x = element_blank(), y = "Normalized cMyc/GAPDH")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)), breaks = c(0, 0.5, 1))+
+  theme(legend.position = "none",
+        plot.title = element_text(face = "italic", hjust = 0.5),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/F+M-2kd_WB_validation(cMyc).svg", width = 1, height = 1.8, units = "in")
+
+dat1 %>% filter(protein == "FADD") %>% 
+  ggplot(aes(x = siRNA, y = to_plot, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(7)+
+  labs(x = element_blank(), y = "Normalized FADD/GAPDH")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)), breaks = c(0, 0.5, 1))+
+  theme(legend.position = "none",
+        plot.title = element_text(face = "italic", hjust = 0.5),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/F+M-2kd_WB_validation(FADD).svg", width = 1, height = 1.8, units = "in")
+
+#STATS
+## Myc
+v1 <- dat1 %>% filter(protein == "cMyc", siRNA == "Control") %>% pull(signal_norm)
+v2 <- dat1 %>% filter(protein == "cMyc", siRNA == "FADD+cMyc") %>% pull(signal_norm)
+t.test(v1, v2)
+
+## FADD
+v3 <- dat1 %>% filter(protein == "FADD", siRNA == "Control") %>% pull(signal_norm)
+v4 <- dat1 %>% filter(protein == "FADD", siRNA == "FADD+cMyc") %>% pull(signal_norm)
+t.test(v3, v4)
+```
+
+
+##TNFa hypoxia TMZ cell death
+```{r}
+dat1 <- read_excel("../07-17-23 U87L TNFa hypoxia TMZ cell death results.xlsx", range = "A9:D14")
+
+dat1 <- dat1 %>% mutate(chemo = case_when(
+  grepl("DMSO", treat) ~ "DMSO",
+  grepl("TMZ", treat) ~ "TMZ"
+)) %>% 
+  mutate(pretreat = case_when(
+    grepl("NP", treat) ~ "NP",
+    grepl("Hyp\\+TNF", treat) ~ "Hypoxia+TNF\u03B1",
+    grepl("TNF", treat) ~ "TNF\u03B1",
+    grepl("Hyp", treat) ~ "Hypoxia",
+  ))
+
+dat2 <- dat1 %>% 
+  dplyr::select(treat, chemo, pretreat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(treat, chemo, pretreat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2
+
+dat3$chemo <- dat3$chemo %>% factor(c("DMSO", "TMZ"))
+dat3$pretreat <- dat3$pretreat %>% factor(c("NP", "TNF\u03B1", "Hypoxia", "Hypoxia+TNF\u03B1"))
+dat3$treat <- dat3$treat %>% gsub (" ", "\n", .) %>% 
+  factor(c("NP\nDMSO", "NP\nTMZ", "TNF\u03B1\nTMZ", "Hyp\nTMZ", "Hyp+TNF\u03B1\nTMZ"))
+
+dat3 %>% ggplot(aes(x = treat, y = dead))+
+  stat_summary(geom = "col", fun.y = "mean", fill = "#0072b2", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  # facet_wrap(~treat)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none")
+ggsave("figure export/TNFa_hyp_TMZ_cell_death.svg", width = 1.5, height = 2, units = "in")
+
+#one-way ANOVA
+
+anova1 <- aov(dead ~ treat, data = dat2)
+summary(anova1)
+TukeyHSD(anova1)
+
+dat2$treat <- dat2$treat %>% factor(c("NP DMSO", "NP TMZ", "TNF\u03B1 TMZ", "Hyp TMZ", "Hyp+TNF\u03B1 TMZ"))
+dat2 %>% ggplot(aes(x = treat, y = dead))+
+  geom_point()
+
+
+```
+##CK1a inhib IF
+```{r}
+##FADD IF
+nuc_fadd <- rbind(read_csv("../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/DMSO_nuclei.csv"),
+                  read_csv("../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/TMZ_nuclei.csv"))
+total_fadd <- rbind(read_csv("../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/DMSO_total.csv"),
+                    read_csv("../05-10-23 U87L TMZ CK1ai IF analysis (FADD)/TMZ_total.csv"))
+
+colnames(nuc_fadd) <- colnames(nuc_fadd) %>% gsub("Intensity_", "", .)
+colnames(nuc_fadd)[9:10] <- colnames(nuc_fadd)[9:10] %>% paste("_nuc", sep="")
+colnames(total_fadd) <- colnames(total_fadd) %>% gsub("Intensity_", "", .)
+colnames(total_fadd)[9:10] <- colnames(total_fadd)[9:10] %>% paste("_tot", sep="")
+
+dat1 <- full_join(nuc_fadd, total_fadd)
+colnames(dat1) <- colnames(dat1) %>% 
+  gsub("Metadata_", "", .)
+
+treatments <- c("DMSO", "DMSO+CK1\u03B1i", "TMZ", "TMZ+CK1\u03B1i")
+dat1$treat <- dat1$treat %>% gsub("CK1ai", "CK1\u03B1i", .)
+dat1$treat <- dat1$treat %>% factor(treatments)
+dat1 <- dat1 %>% mutate(FADD_nuc_frac = IntegratedFADD_nuc/IntegratedFADD_tot)
+dat1 <- dat1 %>% mutate(FADD_tot_norm = (MeanFADD_tot-min(MeanFADD_tot))/max(MeanFADD_tot),
+                        FADD_nuc_norm = (MeanFADD_nuc-min(MeanFADD_nuc))/max(MeanFADD_nuc))
+
+dat1 <- dat1 %>% mutate(chemo = if_else(grepl("DMSO", treat), "DMSO", "TMZ"),
+                        inhib = if_else(grepl("CK1", treat), "CK1\u03B1i", "DMSO"))
+dat1$chemo <- dat1$chemo %>% factor(c("DMSO", "TMZ"))
+dat1$inhib <- dat1$inhib %>% factor(c("DMSO", "CK1\u03B1i"))
+
+
+dat1 %>% ggplot(aes(x = inhib, y = MeanFADD_tot, color = chemo, alpha = inhib))+
+  facet_wrap(~chemo)+
+  geom_beeswarm(size = 0.5, cex = 0.8)+
+  geom_boxplot(alpha = 0, color = "black")+
+  theme_cowplot(8)+
+  scale_color_okabe_ito(order = c(5, 3))+
+  labs(x = element_blank(), y = "Mean FADD (arbitrary units)")+
+  theme(legend.position = "none")+
+  scale_alpha_discrete(range = c(0.8, 0.2))+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))
+ggsave("figure export/FADD_CK1ai_IF.svg", width = 2, height = 1.5, units = "in")
+
+# one-way ANOVA
+anova1 <- aov(MeanFADD_tot ~ treat, data = dat1)
+summary(anova1)
+TukeyHSD(anova1)
+
+# t-test
+# DMSO
+t.test(
+  filter(dat1, treat == "DMSO")$MeanFADD_tot,
+  filter(dat1, treat == "DMSO+CK1\u03B1i")$MeanFADD_tot
+)
+
+# TMZ
+t.test(
+  filter(dat1, treat == "TMZ")$MeanFADD_tot,
+  filter(dat1, treat == "TMZ+CK1\u03B1i")$MeanFADD_tot
+)
+
+ggbetweenstats(dat1, x = treat, y = MeanFADD_tot)
+
+##MYC IF
+nuc_myc <- rbind(
+  read_csv("../10-18-23 U87L CK1ai IF (cMyc)/DMSO_nuclei.csv"),
+  read_csv("../10-18-23 U87L CK1ai IF (cMyc)/TMZ_nuclei.csv")
+)
+
+
+colnames(nuc_myc) <- colnames(nuc_myc) %>% gsub("Intensity_", "", .)
+
+dat2 <- nuc_myc
+colnames(dat2) <- colnames(dat2) %>% 
+  gsub("Metadata_", "", .)
+
+treatments <- c("DMSO", "DMSO+CK1ai", "TMZ", "TMZ+CK1ai")
+dat2 <- dat2 %>% mutate(chemo = if_else(grepl("DMSO", treat), "DMSO", "TMZ"),
+                        inhib = if_else(grepl("CK1", treat), "CK1\u03B1i", "DMSO"))
+dat2$chemo <- dat2$chemo %>% factor(c("DMSO", "TMZ"))
+dat2$inhib <- dat2$inhib %>% factor(c("DMSO", "CK1\u03B1i"))
+dat2$treat <- dat2$treat %>% factor(treatments)
+
+dat2 <- dat2 %>% mutate(MYC_nuc_norm = (MeanMYC-min(MeanMYC))/max(MeanMYC))
+
+dat2 %>% ggplot(aes(x = inhib, y = MeanMYC, color = chemo, alpha = inhib))+
+  facet_wrap(~chemo)+
+  geom_beeswarm(size = 0.5, cex = 0.5)+
+  geom_boxplot(alpha = 0, color = "black")+
+  theme_cowplot(8)+
+  scale_color_okabe_ito(order = c(5, 3))+
+  labs(x = element_blank(), y = "Mean MYC (arbitrary units)")+
+  theme(legend.position = "none")+
+  scale_alpha_discrete(range = c(0.8, 0.2))+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))
+ggsave("figure export/MYC_CK1ai_IF.svg", width = 2, height = 1.5, units = "in")
+
+# one-way ANOVA
+anova2 <- aov(MeanMYC ~ treat, data = dat2)
+summary(anova2)
+TukeyHSD(anova2)
+
+# t-test
+# DMSO
+t.test(
+  filter(dat2, treat == "DMSO")$MeanMYC,
+  filter(dat2, treat == "DMSO+CK1ai")$MeanMYC
+)
+
+# TMZ
+t.test(
+  filter(dat2, treat == "TMZ")$MeanMYC,
+  filter(dat2, treat == "TMZ+CK1ai")$MeanMYC
+)
+```
+
+##CK1ai cell death
+```{r}
+dat1 <- read_excel("../12-08-22 U87L cell death results TMZ carbo NCC007.xlsx", range = "A1:E7")
+
+dat2 <- dat1 %>% 
+  dplyr::select(drug1, drug2, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(drug1, drug2), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive) 
+
+dat2$drug2 <- dat2$drug2 %>% 
+  gsub("NCC007", "CK1\u03B1i", .) %>% gsub("Control", "DMSO", .)
+
+dat3 <- dat2
+
+dat3$drug1 <- dat3$drug1 %>% factor(c("DMSO", "TMZ", "CARBO"))
+dat3$drug2 <- dat3$drug2 %>% factor(c("DMSO", "CK1\u03B1i"))
+
+dat3 %>% ggplot(aes(x = drug2, y = dead, fill = drug2))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  facet_wrap(~drug1)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = c(0.05,  0.95), legend.title = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L_CK1ai_cell death.svg", width = 2.3, height = 2, units = "in")
+
+#t-tests and CI calcs
+for (t in unique(factor(dat2$drug1))) {
+  c1 <- dat2 %>% filter(drug2 == "DMSO", drug1 == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(drug2 == "CK1\u03B1i", drug1 == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+  
+  #Bliss Independence calculation
+  #CI = (E_A+E_B-E_A*E_B)/E_AB
+  EA <- mean(c1)/100
+  EB <- dat2 %>% filter(drug1 =="DMSO", drug2 == "CK1\u03B1i") %>% pull(dead) %>% mean()/100
+  EAB <- mean(c2)/100
+  CI <- (EA+EB-EA*EB)/EAB
+  print(paste("CI = ", CI))
+  
+}
+
+
+```
+##FADD+MYC si cell death
+```{r}
+dat1 <- read_excel("../08-19-23 U87L FADD+MYC kd TMZ carbo cell death results.xlsx", range = "A1:E9")
+
+dat2 <- dat1 %>%
+  pivot_longer(-c(siRNA, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive) 
+
+dat2$siRNA <- dat2$siRNA %>% gsub(" siRNA", "", .) %>% 
+  factor(c("Control", "FADD", "MYC", "FADD+MYC"))
+dat2$treat <- dat2$treat %>% factor(c("TMZ", "CARBO"))
+
+dat2 %>% 
+  ggplot(aes(x = siRNA, y = dead, fill = siRNA))+
+  facet_wrap(~treat)+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 3)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.3)))+
+  theme(legend.position = "none")+
+  scale_fill_okabe_ito(order = c(9, 5, 3, 6))+
+  scale_color_okabe_ito(order = c(9, 5, 3, 6))
+ggsave("figure export/U87L_FADD+MYC_si_cell death.svg", width = 2, height = 2, units = "in")
+
+anova1 <- aov(dead ~ siRNA, data = dat2 %>% filter(treat == "TMZ"))
+summary(anova1)
+TukeyHSD(anova1)
+  
+anova2 <- aov(dead ~ siRNA, data = dat2 %>% filter(treat == "CARBO"))
+summary(anova2)
+TukeyHSD(anova2)
+
+#mapping = aes(x = siRNA, y = dead),
+```
+##TNFa+Hyp MYC RTqPCR
+```{r}
+dat1 <- read_excel("../09-05-23 U87L TNFa Hyp RTqPCR also Myc si.xlsx", sheet = "Plate 1", range = "G46:J58")
+colnames(dat1)[1] <- "treat"
+dat1 <- dat1[, -2]
+dat1$treat <- dat1$treat %>% gsub(" [1-9]", "", .) %>% gsub("TNFa", "TNF\u03B1", .)
+
+dat1$treat <- dat1$treat %>% factor(c("Unt", "TNF\u03B1", "Hyp", "TNF\u03B1 Hyp"))
+
+dat1 %>%  
+  ggplot(aes(x = treat, y = MYC))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black", fill = "#0072B2")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "Normalized Fold Change", title = "MYC")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none",
+        plot.title = element_text(size = 8, face = "italic", hjust = 0.5))
+ggsave("figure export/TNFa+hyp_MYC_qPCR.svg", width = 1.2, height = 1.8, units = "in")
+
+
+anova1 <- aov(MYC ~ treat, data = dat1)
+summary(anova1)
+TukeyHSD(anova1)
+
+```
+
+##U87L-MYC hypoxia cell death
+```{r}
+dat1 <- read_excel("../12-05-23 U87L-MYC hypoxia TMZ carbo cell death results.xlsx", range = "A1:F13") %>% 
+  pivot_longer(cols = -c(O2, line, drug), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100-alive)
+dat1$O2 <- dat1$O2 %>% factor(c("21", "1"))
+dat1$line <- dat1$line %>% factor(c("EV", "MYC"))
+dat1$drug <- dat1$drug %>% factor(c("DMSO", "TMZ", "CARBO"))
+
+ggplot(dat1, aes(x = O2, y = dead, fill = O2))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(7)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none")+
+  scale_fill_okabe_ito(order = c(5,3))+
+  facet_grid(cols = vars(line), rows = vars(drug))
+ggsave("figure export/U87L-cMyc_hypoxia_cell-death.svg", width = 2, height = 3, units = "in")
+
+
+# STATS
+dat1.dmso <- dat1 %>% filter(drug == "DMSO")
+dat1.tmz <- dat1 %>% filter(drug == "TMZ")
+dat1.carbo <- dat1 %>% filter(drug == "CARBO")
+
+## DMSO stats
+no_int <- lm(dead ~ O2 + line, data = dat1.dmso)
+anova(no_int)
+
+yes_int <- lm(dead ~ O2 * line, data = dat1.dmso)
+anova(yes_int)
+
+AIC(no_int, yes_int)
+
+pairs(emmeans(yes_int, specs = c("line", "O2")))
+
+## TMZ stats
+no_int <- lm(dead ~ O2 + line, data = dat1.tmz)
+anova(no_int)
+
+yes_int <- lm(dead ~ O2 * line, data = dat1.tmz)
+anova(yes_int)
+
+AIC(no_int, yes_int)
+# anova(no_int, yes_int)
+
+pairs(emmeans(yes_int, specs = c("line", "O2")))
+
+## CARBO stats
+no_int <- lm(dead ~ O2 + line, data = dat1.carbo)
+anova(no_int)
+
+yes_int <- lm(dead ~ O2 * line, data = dat1.carbo)
+anova(yes_int)
+
+AIC(no_int, yes_int)
+anova(no_int, yes_int)
+
+pairs(emmeans(yes_int, specs = c("line", "O2")))
+
+```
+
+
+
+
+#PTEN data
+## U87L PTEN si cell death
+```{r}
+dat1 <- read_excel("../12-19-22 U87L siPTEN TMZ carbo cell death results.xlsx", range = "A1:H7")
+colnames(dat1) <- colnames(dat1) %>% gsub("si", "siRNA", .) %>% gsub("chemo", "treat", .)
+dat1$siRNA <- dat1$siRNA %>% gsub("Ctrl", "Control siRNA", .) %>% gsub("PTEN", "PTEN siRNA", .)
+
+dat2 <- dat1 %>% 
+  dplyr::select(siRNA, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(siRNA, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2
+
+dat3$siRNA <- dat3$siRNA %>% factor(c("Control siRNA", "PTEN siRNA"))
+dat3$treat <- dat3$treat %>% gsub("CARB", "CARBO", .) %>% factor(c("DMSO", "TMZ", "CARBO"))
+# dat3$siRNA <- dat3$siRNA %>% gsub(" ", " \n", .)
+
+dat3 %>% ggplot(aes(x = siRNA, y = dead, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 3)+
+  facet_wrap(~treat, switch = "x")+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
+  theme(legend.position = c(0.05, 0.95), 
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L_PTEN_siRNA_cell_death.svg", width = 2.3, height = 2, units = "in")
+
+for (t in unique(factor(dat2$treat))) {
+  c1 <- dat2 %>% filter(siRNA == "Control siRNA", treat == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(siRNA == "PTEN siRNA", treat == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+}
+
+
+```
+##LN18 PTEN si cell death
+```{r}
+dat1 <- read_excel("../09-05-23 LN18 siPTEN TMZ CARBO cell death results.xlsx", range = "A1:H7")
+dat1$siRNA <- dat1$siRNA %>% gsub("Control", "Control siRNA", .) %>% gsub("PTEN", "PTEN siRNA", .)
+
+dat2 <- dat1 %>% 
+  dplyr::select(siRNA, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(siRNA, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2
+
+dat3$siRNA <- dat3$siRNA %>% factor(c("Control siRNA", "PTEN siRNA"))
+dat3$treat <- dat3$treat %>% factor(c("DMSO", "TMZ", "CARBO"))
+# dat3$siRNA <- dat3$siRNA %>% gsub(" ", " \n", .)
+
+dat3 %>% ggplot(aes(x = siRNA, y = dead, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 3)+
+  facet_wrap(~treat, switch = "x")+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
+  theme(legend.position = c(0.05, 0.95), 
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/LN18_PTEN_siRNA_cell_death.svg", width = 2.3, height = 2, units = "in")
+
+for (t in unique(factor(dat2$treat))) {
+  c1 <- dat2 %>% filter(siRNA == "Control siRNA", treat == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(siRNA == "PTEN siRNA", treat == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+}
+
+
+
+
+```
+
+##PTEN si cell cycle
+```{r}
+dat1 <- read_excel("../02-27-23 U87L siPTEN TMZ carbo cell cycle analysis.xlsx", range = "A2:H8")
+colnames(dat1) <- c("siRNA", "treat", "G1", "G2", "S", "G1", "G2", "S")
+
+dat1 <- dat1 %>% pivot_longer(cols = -c(siRNA, treat), names_to = "phase", values_to = "pct")
+# dat2 <- dat1 %>% group_by(siRNA, treat, phase) %>% summarise_all(funs(mean, sd))
+# dat2$treat <- dat2$treat %>% factor(c("DMSO", "TMZ", "CARBO"))
+# dat2$phase <- dat2$phase %>% factor(c("G2", "S", "G1"))
+# dat2 <- dat2 %>% group_by()
+dat1$treat <- dat1$treat %>% factor(c("DMSO", "TMZ", "CARBO"))
+dat1$phase <- dat1$phase %>% factor(c("G2", "S", "G1"))
+dat1$siRNA <- dat1$siRNA %>% gsub("ctrl si", "Control \nsiRNA", .) %>% gsub("PTEN si", "PTEN \nsiRNA", .)
+
+ggbarplot(dat1, x = "siRNA", y = "pct", add = "mean_sd", fill = "phase", facet.by = "treat")+
+  scale_y_continuous(expand = expansion(add = c(0,3)))+
+  guides(fill = guide_legend(reverse = T))+
+  labs(x = element_blank(), y = "% Cell-cycle phase")+
+  scale_fill_manual(values = c("#111111", "#777777", "#EEEEEE"))+
+  theme_cowplot(8)+
+  theme(legend.position = "none")
+ggsave("figure export/PTEN_siRNA_cell-cycle.svg", width = 3, height = 2, units = "in")
+
+# ggplot(dat2, aes(x = siRNA, y = mean, fill = phase))+
+#   geom_bar(stat = "identity", position = "stack")+
+#   geom_errorbar(aes(ymax = mean+sd, ymin = mean-sd), width = 0.3, position = "identity")+
+#   facet_wrap(~treat)
+
+```
+
+
+## Chk1i cell death
+```{r}
+dat1 <- read_excel("../04-14-23 U87L TMZ carbo Chk1i cell death results.xlsx", range = "A1:G7")
+
+dat1 <- dat1 %>% mutate(chemo = case_when(
+  grepl("DMSO", treat) ~ "DMSO",
+  grepl("TMZ", treat) ~ "TMZ",
+  grepl("CARBO", treat) ~ "CARBO"
+)) %>% 
+  mutate(inhib = if_else(grepl("Chk1i", treat), "Chk1i", "DMSO"))
+
+dat2 <- dat1 %>% 
+  dplyr::select(chemo, inhib, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(chemo, inhib), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2
+
+dat3$chemo <- dat3$chemo %>% factor(c("DMSO", "TMZ", "CARBO"))
+dat3$inhib <- dat3$inhib %>% factor(c("DMSO", "Chk1i"))
+
+dat3 %>% ggplot(aes(x = inhib, y = dead, fill = inhib))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 3)+
+  facet_wrap(~chemo, switch = "x")+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = c(0.05, 0.95), 
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L_Chk1i_cell death.svg", width = 2.3, height = 2, units = "in")
+
+#t-tests and CI calcs
+for (t in unique(factor(dat2$chemo))) {
+  c1 <- dat2 %>% filter(inhib == "DMSO", chemo == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(inhib == "Chk1i", chemo == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+  
+  #Bliss Independence calculation
+  #CI = (E_A+E_B-E_A*E_B)/E_AB
+  EA <- mean(c1)/100
+  EB <- dat2 %>% filter(chemo =="DMSO", inhib == "Chk1i") %>% pull(dead) %>% mean()/100
+  EAB <- mean(c2)/100
+  CI <- (EA+EB-EA*EB)/EAB
+  print(paste("CI = ", CI))
+  
+}
+
+
+```
+##Chk1i cell cycle
+```{r}
+dat1 <- read_excel("../05-08-23 U87L TMZ carbo Chk1i cell cycle analysis.xlsx", range = "A2:K8")
+colnames(dat1) <- c("treat", "inhib", "G1", "G2", "S", "G1", "G2", "S", "G1", "G2", "S")
+
+dat1 <- dat1 %>% pivot_longer(cols = -c(inhib, treat), names_to = "phase", values_to = "pct")
+dat1 <- dat1 %>% filter(treat != "CARBO")
+
+dat1$treat <- dat1$treat %>% factor(c("DMSO", "TMZ"))
+dat1$phase <- dat1$phase %>% factor(c("G2", "S", "G1"))
+dat1$inhib <- dat1$inhib %>% gsub("AZD7762", "Chk1i", .) %>% factor(c("DMSO", "Chk1i"))
+
+ggbarplot(dat1, x = "inhib", y = "pct", add = "mean_sd", fill = "phase", facet.by = "treat")+
+  scale_y_continuous(expand = expansion(add = c(0,3)))+
+  guides(fill = guide_legend(reverse = T))+
+  labs(x = element_blank(), y = "% Cell-cycle phase")+
+  scale_fill_manual(values = c("#111111", "#777777", "#EEEEEE"))+
+  theme_cowplot(8)+
+  theme(legend.position = "none")
+ggsave("figure export/Chk1i_cell-cycle.svg", width = 2, height = 2, units = "in")
+
+
+```
+
+
+## mTORi cell death
+```{r}
+dat1 <- read_excel("../06-26-23 U87L TMZ carbo mTORi cell death results.xlsx", range = "A1:G7")
+
+dat1 <- dat1 %>% mutate(chemo = case_when(
+  grepl("DMSO", treat) ~ "DMSO",
+  grepl("TMZ", treat) ~ "TMZ",
+  grepl("CARBO", treat) ~ "CARBO"
+)) %>% 
+  mutate(inhib = if_else(grepl("mTORi", treat), "mTORi", "DMSO"))
+
+dat2 <- dat1 %>% 
+  dplyr::select(chemo, inhib, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(chemo, inhib), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2
+
+dat3$chemo <- dat3$chemo %>% factor(c("DMSO", "TMZ", "CARBO"))
+dat3$inhib <- dat3$inhib %>% factor(c("DMSO", "mTORi"))
+
+dat3 %>% ggplot(aes(x = inhib, y = dead, fill = inhib))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 3)+
+  facet_wrap(~chemo, switch = "x")+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = c(0.05, 0.95), 
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L_mTORi_cell death.svg", width = 2.3, height = 2, units = "in")
+
+#t-tests and CI calcs
+for (t in unique(factor(dat2$chemo))) {
+  c1 <- dat2 %>% filter(inhib == "DMSO", chemo == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(inhib == "mTORi", chemo == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+  
+  #Bliss Independence calculation
+  #CI = (E_A+E_B-E_A*E_B)/E_AB
+  EA <- mean(c1)/100
+  EB <- dat2 %>% filter(chemo =="DMSO", inhib == "mTORi") %>% pull(dead) %>% mean()/100
+  EAB <- mean(c2)/100
+  CI <- (EA+EB-EA*EB)/EAB
+  print(paste("CI = ", CI))
+  
+}
+
+```
+
+
+## GSK3i cell death
+```{r}
+dat1 <- read_excel("../07-01-23 U87L TMZ carbo GSK3i cell death results.xlsx", range = "A1:G7")
+
+dat1 <- dat1 %>% mutate(chemo = case_when(
+  grepl("DMSO", treat) ~ "DMSO",
+  grepl("TMZ", treat) ~ "TMZ",
+  grepl("CARBO", treat) ~ "CARBO"
+)) %>% 
+  mutate(inhib = if_else(grepl("GSK3i", treat), "GSK3i", "DMSO"))
+
+dat2 <- dat1 %>% 
+  dplyr::select(chemo, inhib, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(chemo, inhib), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2
+
+dat3$chemo <- dat3$chemo %>% factor(c("DMSO", "TMZ", "CARBO"))
+dat3$inhib <- dat3$inhib %>% factor(c("DMSO", "GSK3i"))
+
+dat3 %>% ggplot(aes(x = inhib, y = dead, fill = inhib))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 3)+
+  facet_wrap(~chemo, switch = "x")+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = c(0.05, 0.95), 
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L_GSK3i_cell death.svg", width = 2.3, height = 2, units = "in")
+
+#t-tests and CI calcs
+for (t in unique(factor(dat2$chemo))) {
+  c1 <- dat2 %>% filter(inhib == "DMSO", chemo == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(inhib == "GSK3i", chemo == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+  
+  #Bliss Independence calculation
+  #CI = (E_A+E_B-E_A*E_B)/E_AB
+  EA <- mean(c1)/100
+  EB <- dat2 %>% filter(chemo =="DMSO", inhib == "GSK3i") %>% pull(dead) %>% mean()/100
+  EAB <- mean(c2)/100
+  CI <- (EA+EB-EA*EB)/EAB
+  print(paste("CI = ", CI))
+  
+}
+
+```
+
+## PI3Ki cell death
+```{r}
+dat1 <- read_excel("../09-04-23 U87L TMZ carbo PI3Ki cell death results.xlsx", range = "A1:G7")
+
+dat1 <- dat1 %>% mutate(chemo = case_when(
+  grepl("DMSO", treat) ~ "DMSO",
+  grepl("TMZ", treat) ~ "TMZ",
+  grepl("CARBO", treat) ~ "CARBO"
+)) %>% 
+  mutate(inhib = if_else(grepl("PI3Ki", treat), "PI3Ki", "DMSO"))
+
+dat2 <- dat1 %>% 
+  dplyr::select(chemo, inhib, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(chemo, inhib), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2
+
+dat3$chemo <- dat3$chemo %>% factor(c("DMSO", "TMZ", "CARBO"))
+dat3$inhib <- dat3$inhib %>% factor(c("DMSO", "PI3Ki"))
+
+dat3 %>% ggplot(aes(x = inhib, y = dead, fill = inhib))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 3)+
+  facet_wrap(~chemo, switch = "x")+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = c(0.05, 0.95), 
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank())+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L_PI3Ki_cell death.svg", width = 2.3, height = 2, units = "in")
+
+#t-tests and CI calcs
+for (t in unique(factor(dat2$chemo))) {
+  c1 <- dat2 %>% filter(inhib == "DMSO", chemo == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(inhib == "PI3Ki", chemo == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+  
+  #Bliss Independence calculation
+  #CI = (E_A+E_B-E_A*E_B)/E_AB
+  EA <- mean(c1)/100
+  EB <- dat2 %>% filter(chemo =="DMSO", inhib == "PI3Ki") %>% pull(dead) %>% mean()/100
+  EAB <- mean(c2)/100
+  CI <- (EA+EB-EA*EB)/EAB
+  print(paste("CI = ", CI))
+  
+}
+
+```
+
+##PTEN kd + PI3Ki cell death
+```{r}
+dat1 <- read_excel("../08-14-23 U87L-shPTEN TMZ carbo PI3Ki cell death results.xlsx", range = "A1:E9")
+dat1 <- dat1 %>% mutate(chemo = if_else(grepl("TMZ", treat), "TMZ", "CARBO"),
+                        inhib = if_else(grepl("PI3Ki", treat), "PI3Ki", "DMSO"))
+
+dat2 <- dat1 %>% 
+  dplyr::select(treat,shRNA, chemo, inhib, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(treat,shRNA, chemo, inhib), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2 
+
+dat3$chemo <- dat3$chemo %>% factor(c("TMZ", "CARBO"))
+dat3$inhib <- dat3$inhib %>% factor(c("DMSO", "PI3Ki"))
+dat3$shRNA <- dat3$shRNA %>% factor(c("shGFP", "shPTEN"))
+
+dat3 %>% filter(chemo == "CARBO") %>% 
+  ggplot(aes(x = treat, y = dead, fill = shRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black", position = "dodge")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2, position = position_dodge(0.9))+
+  geom_beeswarm(dodge.width = 0.9, size = 1, pch = 21, color = "black", cex = 3)+
+  # facet_wrap(~chemo)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "top", legend.title = element_blank())+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L_PI3Ki_shPTEN_cell death.svg", width = 1.6, height = 2, units = "in")
+
+#STATS
+v1 <- dat3 %>% filter(treat == "CARBO", shRNA == "shGFP") %>% .$dead
+v2 <- dat3 %>% filter(treat == "CARBO", shRNA == "shPTEN") %>% .$dead
+t.test(v1, v2)
+
+v3 <- dat3 %>% filter(treat == "CARBO+PI3Ki", shRNA == "shGFP") %>% .$dead
+v4 <- dat3 %>% filter(treat == "CARBO+PI3Ki", shRNA == "shPTEN") %>% .$dead
+t.test(v3, v4)
+```
+
+##PTEN si validation qPCR
+```{r}
+##U87L PTEN kd validation
+dat1 <- read_excel("../01-12-23 U87L PTEN FADD siRNA RTqPCR.xlsx", sheet = "Plate 1", range = "C46:F58") %>% .[1:6,-2] %>% dplyr::select(-FADD)
+colnames(dat1)[1] <- "siRNA"
+dat1$siRNA <- dat1$siRNA %>% gsub("ctrl", "Control", .) %>% gsub("[1-9]", "", .) %>% gsub(" si", "\nsiRNA", .)
+
+dat1 %>% 
+  ggplot(aes(x = siRNA, y = PTEN, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(7)+
+  labs(x = element_blank(), y = "Normalized Fold Change", title = "PTEN")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none",
+        plot.title = element_text(face = "italic", hjust = 0.5))+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L_PTEN_qPCR_PTENsi.svg", width = 1, height = 1.8, units = "in")
+
+
+##LN18 PTEN kd validation
+dat1 <- read_excel("../10-19-23 LN18 PTEN Myc si RTqPCR (PTEN MYC).xlsx", sheet = "Plate 1", range = "C37:E43") %>% .[1:6,-2]
+colnames(dat1)[1] <- "siRNA"
+dat1$siRNA <- dat1$siRNA %>% gsub(" ", "\n", .)
+
+dat1 %>% 
+  ggplot(aes(x = siRNA, y = PTEN, fill = siRNA))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(7)+
+  labs(x = element_blank(), y = "Normalized Fold Change", title = "PTEN")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none",
+        plot.title = element_text(face = "italic", hjust = 0.5))+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/LN18_PTEN_qPCR_PTENsi.svg", width = 1, height = 1.8, units = "in")
+
+```
+##PTEN IF
+```{r}
+path <- "../12-20-22 U87L JNKi TMZ carbo IF exp (PTEN)/"
+nuc <- rbind(read_csv(paste(path, "DMSO_nuclei.csv", sep = "")),
+             read_csv(paste(path, "TMZ_nuclei.csv", sep = "")),
+             read_csv(paste(path, "CARB_nuclei.csv", sep = "")))
+
+cyto <- rbind(read_csv(paste(path, "DMSO_cyto.csv", sep = "")),
+             read_csv(paste(path, "TMZ_cyto.csv", sep = "")),
+             read_csv(paste(path, "CARB_cyto.csv", sep = "")))
+
+total <- rbind(read_csv(paste(path, "DMSO_total.csv", sep = "")),
+             read_csv(paste(path, "TMZ_total.csv", sep = "")),
+             read_csv(paste(path, "CARB_total.csv", sep = "")))
+
+colnames(nuc) <- colnames(nuc) %>% gsub("Intensity_", "", .)
+colnames(nuc)[10:13] <- colnames(nuc)[10:13] %>% paste("_nuc", sep="")
+colnames(total) <- colnames(total) %>% gsub("Intensity_", "", .)
+colnames(total)[10:11] <- colnames(total)[10:11] %>% paste("_tot", sep="")
+colnames(cyto) <- colnames(cyto) %>% gsub("Intensity_", "", .)
+colnames(cyto)[10:11] <- colnames(cyto)[10:11] %>% paste("_cyto", sep="")
+
+dat1 <- full_join(nuc, total) %>% full_join(cyto)
+colnames(dat1) <- colnames(dat1) %>% gsub("Metadata_", "", .)
+colnames(dat1) <- colnames(dat1) %>% gsub("pretreat", "chemo", .)
+
+dat1 <- dat1 %>% filter(drug == "dmso")
+dat1$chemo <- dat1$chemo %>% gsub("CARB", "CARBO", .) %>% factor(c("DMSO", "TMZ", "CARBO"))
+
+dat1 %>% 
+  ggplot(aes(x = chemo, y = IntegratedPTEN_nuc, color = chemo))+
+  geom_beeswarm(size = 0.5)+
+  geom_boxplot(outlier.size = 0, color = "#222222", alpha = 0)+
+  scale_y_log10(expand = expansion(mult = c(0, 0.1)))+
+  # scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
+  theme_cowplot(8)+
+  theme(legend.position = "none")+
+  labs(x = element_blank(), y = "Nuclear PTEN")+
+  scale_color_okabe_ito(order = c(9,5,3))
+ggsave("figure export/nuc-PTEN_TMZ_CARBO.svg", width = 1.5, height = 2, units = "in")
+
+
+```
+
+##PTEN si/PI3Ki blot
+```{r}
+dat1 <- read_excel("../09-29-23 U87L PTEN si PI3Ki BCA WB.xlsx", sheet = "WB - 11.2.23", range = "A1:K37") %>% dplyr::select(Signal, protein, sample)
+dat2 <- dat1 %>% pivot_wider(names_from = protein, values_from = Signal) %>% 
+  mutate(
+    pAkt_norm = pAkt/GAPDH,
+    pGSK3b_norm = pGSK3b/GAPDH,
+    treat = gsub(" [1-9]", "", sample)
+)
+
+#t tests
+t.test(
+  #pAKT control vs PTEN si
+  filter(dat2, treat == "Ctrl si")$pAkt_norm,
+  filter(dat2, treat == "PTEN si")$pAkt_norm
+)
+
+t.test(
+  #pAKT DMSO vs PI3Ki
+  filter(dat2, treat == "DMSO")$pAkt_norm,
+  filter(dat2, treat == "PI3Ki")$pAkt_norm
+)
+
+t.test(
+  #pGSK3b control vs PTEN si
+  filter(dat2, treat == "Ctrl si")$pGSK3b_norm,
+  filter(dat2, treat == "PTEN si")$pGSK3b_norm
+)
+
+t.test(
+  #pGSK3b DMSO vs PI3Ki
+  filter(dat2, treat == "DMSO")$pGSK3b_norm,
+  filter(dat2, treat == "PI3Ki")$pGSK3b_norm
+)
+
+#plot
+##Control vs PTEN si
+dat3 <- dat2 %>% filter(treat %in% c("Ctrl si", "PTEN si")) 
+dat3$treat <- dat3$treat %>% gsub(" si", "\nsiRNA", .) %>% gsub("Ctrl", "Control", .)
+ggplot(dat3, aes(x = treat, y = pAkt_norm, fill = treat))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "pAkt/GAPDH")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)), breaks = c(0, 0.5, 1.0))+
+  scale_fill_okabe_ito(order = c(5, 3))+
+  theme(legend.position = "none")
+ggsave("figure export/PTEN-si_WB_pAkt.svg", width = 1.1, height = 1.2, units = "in")
+
+ggplot(dat3, aes(x = treat, y = pGSK3b_norm, fill = treat))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "pGSK3\u03B2/GAPDH")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)), breaks = c(0, 0.1, 0.2))+
+  scale_fill_okabe_ito(order = c(5, 3))+
+  theme(legend.position = "none")
+ggsave("figure export/PTEN-si_WB_pGSK3b.svg", width = 1.1, height = 1.2, units = "in")
+
+##DMSO vs PI3Ki
+dat4 <- dat2 %>% filter(treat %in% c("DMSO", "PI3Ki")) 
+ggplot(dat4, aes(x = treat, y = pAkt_norm, fill = treat))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "pAkt/GAPDH")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)), breaks = c(0, 0.4, 0.8))+
+  scale_fill_okabe_ito(order = c(5, 3))+
+  theme(legend.position = "none")
+ggsave("figure export/PI3Ki_WB_pAkt.svg", width = 1.1, height = 1.2, units = "in")
+
+ggplot(dat4, aes(x = treat, y = pGSK3b_norm, fill = treat))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "pGSK3\u03B2/GAPDH")+
+  scale_y_continuous(limits = c(0, 0.2), expand = c(0,0), breaks = c(0, 0.1, 0.2))+
+  scale_fill_okabe_ito(order = c(5, 3))+
+  theme(legend.position = "none")
+ggsave("figure export/PI3Ki_WB_pGSK3b.svg", width = 1.1, height = 1.2, units = "in")
+
+```
+
+
+
+
+#shRNA validation
+```{r}
+dat1 <- read_excel("../09-11-23 U87L-shRNA RTqPCR screen.xlsx", sheet = "Plate 1", range = "C55:F70")
+colnames(dat1)[1] <- "shRNA"
+dat1$shRNA <- dat1$shRNA
+
+#PTEN
+dat1.pten <- dat1 %>% dplyr::select(shRNA, PTEN) %>% filter(!is.na(PTEN))
+dat1.pten$shRNA <- dat1.pten$shRNA %>% gsub("2749", "1", .) %>% gsub("219043", "2", .) %>% 
+  factor(c("shGFP", "shPTEN 1", "shPTEN 2"))
+
+dat1.pten %>% 
+  ggplot(aes(x = shRNA, y = PTEN))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black", fill = "#0072B2")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(7)+
+  labs(x = element_blank(), y = "Normalized Fold Change", title = "PTEN")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none",
+        plot.title = element_text(face = "italic", hjust = 0.5),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L-shPTEN_qPCR_screen.svg", width = 1, height = 1.8, units = "in")
+
+anova1 <- aov(PTEN~shRNA, data = dat1.pten)
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+#FADD
+dat1.fadd <- dat1 %>% dplyr::select(shRNA, FADD) %>% filter(!is.na(FADD))
+dat1.fadd$shRNA <- dat1.fadd$shRNA %>% gsub("40270", "1", .) %>% gsub("344533", "2", .) %>% 
+  factor(c("shGFP", "shFADD 1", "shFADD 2"))
+
+dat1.fadd %>% 
+  ggplot(aes(x = shRNA, y = FADD))+
+  stat_summary(geom = "col", fun.y = "mean", color = "black", fill = "#0072B2")+
+  stat_summary(geom = "errorbar", fun.data = "mean_sd", width = 0.2)+
+  geom_beeswarm(size = 1, pch = 21, color = "black", fill = "white", priority = "random", cex = 5)+
+  theme_cowplot(7)+
+  labs(x = element_blank(), y = "Normalized Fold Change", title = "FADD")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2)))+
+  theme(legend.position = "none",
+        plot.title = element_text(face = "italic", hjust = 0.5),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))+
+  scale_fill_okabe_ito(order = c(5, 3))
+ggsave("figure export/U87L-shFADD_qPCR_screen.svg", width = 1, height = 1.8, units = "in")
+
+```
+
+#TCGA data like Evan did
+```{r eval=FALSE, include=FALSE}
+#RPPA and survival data from TCGA 2013, accessed via cBioPortal (https://www.cbioportal.org/study/summary?id=gbm_tcga_pub2013)
+
+library(survival)
+library(ggfortify)
+library(survminer)
+rppa_data <- read_tsv("TCGA/data_rppa.txt")
+rppa_data <- rppa_data %>% column_to_rownames(var = "Composite.Element.REF") %>% t()
+colnames(rppa_data) <- colnames(rppa_data) %>% gsub(".*\\|", "", .)
+colnames(rppa_data) <- colnames(rppa_data) %>% gsub("-(M|R|G)-(C|V|NA)", "", .)
+rppa_data <- rppa_data %>% data.frame() %>% rownames_to_column(var = "PATIENT_ID")
+rppa_data$PATIENT_ID <- rppa_data$PATIENT_ID %>% gsub(".{3}$", "", .)
+rppa_data <- rppa_data %>% distinct(PATIENT_ID, .keep_all = T)
+
+
+patient_data <- read_tsv("TCGA/data_clinical_patient.txt")
+colnames(patient_data) <- patient_data[4,]
+patient_data <- patient_data[5:nrow(patient_data),]
+patient_data$OS_STATUS <- patient_data$OS_STATUS %>% gsub(":.*$", "", .) %>% as.numeric()
+patient_data$DFS_STATUS <- patient_data$DFS_STATUS %>% gsub(":.*$", "", .) %>% as.numeric()
+patient_data$OS_MONTHS <- patient_data$OS_MONTHS %>% as.numeric()
+patient_data$DFS_MONTHS <- patient_data$DFS_MONTHS %>% as.numeric()
+patient_data <- patient_data %>% filter(grepl("TMZ", .$THERAPY))
+# patient_data <- patient_data %>% filter(OS_STATUS == 1)
+
+# pt_rppa <- patient_data %>% inner_join(rppa_data) %>% filter(grepl("TMZ Chemoradiation", .$THERAPY))
+pt_rppa <- patient_data %>% inner_join(rppa_data)
+# pt_rppa <- patient_data %>% inner_join(rppa_data)
+
+pt_rppa <- pt_rppa %>% mutate(
+  pAkt_308 = if_else(Akt_pT308>median(Akt_pT308), "High", "Low"),
+  pAkt_473 = if_else(Akt_pS473>median(Akt_pS473), "High", "Low"),
+  cMyc = if_else(c.Myc>median(c.Myc), "High", "Low"),
+  pmTOR = if_else(mTOR_pS2448>median(mTOR_pS2448), "High", "Low"),
+  pGSK3 = if_else(GSK3_pS9>median(GSK3_pS9), "High", "Low"),
+  pChk1 = if_else(Chk1_pS345>median(Chk1_pS345), "High", "Low"),
+  pChk2 = if_else(Chk2_pT68>median(Chk2_pT68), "High", "Low"),
+  pGSK3ab = if_else(GSK3.alpha.beta_pS21_S9>median(GSK3.alpha.beta_pS21_S9), "High", "Low"),
+  pNFKB = if_else(NF.kB.p65_pS536>median(NF.kB.p65_pS536), "High", "Low"),
+)
+
+km <- Surv(time = pt_rppa$OS_MONTHS, event = pt_rppa$OS_STATUS)
+km_fit <- survfit(km~1)
+autoplot(km_fit)
+
+km_plot <- function(km_cal){
+  km_med <- median(km_cal)
+  annot1 <- paste("Median survival (months):\n", rownames(km_med)[1], ": ", km_med[1], "\n", rownames(km_med)[2], ": ", km_med[2], sep = "")
+  max.x <- km_cal$time[length(km_cal$time)]
+  call1 <- km_cal$call$formula[[2]]$time
+  # print(call1)
+  title1 <- if_else(grepl("OS_", call1), "OS", "DFS")
+  # print(title1)
+  # print(max.x)
+  g1 <- ggsurvplot(km_cal, pval = T, pval.size = 7/.pt, censor = F, pval.coord = c(40, 0.6), size = 0.5)+
+    labs(title = title1)
+  g1$plot <- g1$plot+
+    annotate(geom = "text", x = 50, y = 0.8, label = annot1, size = 7/.pt, fontface = "plain")+
+    theme_cowplot(8)+
+    theme(legend.position = "none")+
+    labs(x = "Time (months)")+
+    scale_color_manual(values = c("darkred", "darkblue"))
+  g1
+}
+
+
+##AKT
+km_akt_308 <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pAkt_308, data = pt_rppa)
+km_plot(km_akt_308)
+
+km_akt308_df <- survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pAkt_308, data = pt_rppa)
+km_plot(km_akt308_df)
+
+km_akt_473 <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pAkt_473, data = pt_rppa)
+km_plot(km_akt_473)
+
+km_akt473_df <- survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pAkt_473, data = pt_rppa)
+km_plot(km_akt473_df)
+        
+##mTOR
+km_mTOR <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pmTOR, data = pt_rppa)
+km_plot(km_mTOR)
+
+km_mTOR_df <- survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pmTOR, data = pt_rppa)
+km_plot(km_mTOR_df)
+
+##GSK3
+km_gsk3 <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pGSK3, data = pt_rppa)
+km_plot(km_gsk3)
+
+km_gsk3_df <- survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pGSK3, data = pt_rppa)
+km_plot(km_gsk3_df)
+
+##GSK3alpha/beta
+km_gsk3ab <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pGSK3ab, data = pt_rppa)
+km_plot(km_gsk3ab)
+
+km_gsk3ab_df <- survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pGSK3ab, data = pt_rppa)
+km_plot(km_gsk3ab_df)
+
+#Chk1
+km_chk1 <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pChk1, data = pt_rppa)
+km_plot(km_chk1)
+
+km_chk1_df <- survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pChk1, data = pt_rppa)
+km_plot(km_chk1_df)
+
+##cMyc
+km_cmyc <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ cMyc, data = pt_rppa)
+km_plot(km_cmyc)
+# ggsave("figure export/TCGA_cMyc_OS.svg", width = 2, height = 2, units = "in")
+
+km_cmyc_df <- survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ cMyc, data = pt_rppa)
+km_plot(km_cmyc_df)
+# ggsave("figure export/TCGA_cMyc_DFS.svg", width = 2, height = 2, units = "in")
+
+##NF-kB
+km_nfkb <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pNFKB, data = pt_rppa)
+km_plot(km_nfkb)
+
+km_nfkb_df <- survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pNFKB, data = pt_rppa)
+km_plot(km_nfkb_df)
+
+```
+##from TCPA
+```{r fig.width=2.5, fig.height=2.5}
+#accessed these RPPA data from MBatch Omics browser (https://bioinformatics.mdanderson.org/MQA/) - they are more complete than the RPPA data on cBioPortal
+library(survival)
+library(ggfortify)
+library(survminer)
+
+km_plot <- function(km_cal){
+  km_med <- median(km_cal)
+  annot1 <- paste("Median survival (months):\n", rownames(km_med)[1], ": ", km_med[1], "\n", rownames(km_med)[2], ": ", km_med[2], sep = "")
+  max.x <- km_cal$time[length(km_cal$time)]
+  call1 <- km_cal$call$formula[[2]]$time
+  # title1 <- if_else(grepl("OS_", call1), "OS", "DFS")
+  title1 <- element_blank()
+  g1 <- ggsurvplot(km_cal, pval = T, pval.size = 7/.pt, censor = F, pval.coord = c(1, 0.1), size = 0.5)+
+    labs(title = title1)
+  g1$plot <- g1$plot+
+    annotate(geom = "text", x = Inf, y = Inf, label = annot1, size = 7/.pt, fontface = "plain", hjust = 1, vjust = 1)+
+    theme_cowplot(8)+
+    theme(legend.position = "none")+
+    labs(x = "Time (months)")+
+    scale_color_manual(values = c("darkred", "darkblue"))
+  g1
+}
+
+tcpa_import <- read_tsv("TCGA/TCPA/current/original/matrix.tsv")
+
+rppa1 <- tcpa_import %>% column_to_rownames(var = "...1") %>% t()
+colnames(rppa1) <- colnames(rppa1) %>% gsub("\\|.*$", "", .)
+rppa1 <- rppa1 %>% data.frame() %>% rownames_to_column(var = "PATIENT_ID")
+rppa1$PATIENT_ID <- rppa1$PATIENT_ID %>% gsub(".{15}$", "", .)
+rppa1 <- rppa1 %>% distinct(PATIENT_ID, .keep_all = T)
+
+patient_data <- read_tsv("TCGA/data_clinical_patient.txt")
+colnames(patient_data) <- patient_data[4,]
+patient_data <- patient_data[5:nrow(patient_data),]
+patient_data$OS_STATUS <- patient_data$OS_STATUS %>% gsub(":.*$", "", .) %>% as.numeric()
+patient_data$DFS_STATUS <- patient_data$DFS_STATUS %>% gsub(":.*$", "", .) %>% as.numeric()
+patient_data$OS_MONTHS <- patient_data$OS_MONTHS %>% as.numeric()
+patient_data$DFS_MONTHS <- patient_data$DFS_MONTHS %>% as.numeric()
+pat_dat_all <- patient_data
+patient_data <- patient_data %>% filter(grepl("TMZ", .$THERAPY))
+
+pt_rppa <- patient_data %>% inner_join(rppa1)
+print(length(pt_rppa$PATIENT_ID))
+
+pt_rppa <- pt_rppa %>% mutate(
+  pSHP2 = if_else(SHP2_pY542>median(SHP2_pY542), "High", "Low"),
+  pAkt_308 = if_else(AKT_pT308>median(AKT_pT308), "High", "Low"),
+  pAkt_473 = if_else(AKT_pS473>median(AKT_pS473), "High", "Low"),
+  pmTOR = if_else(MTOR_pS2448>median(MTOR_pS2448), "High", "Low"),
+  pGSK3 = if_else(GSK3_pS9>median(GSK3_pS9), "High", "Low"),
+  pGSK3ab = if_else(GSK3ALPHABETA_pS21S9>median(GSK3ALPHABETA_pS21S9), "High", "Low"),
+  pCHK1 = if_else(CHK1_pS345>median(CHK1_pS345), "High", "Low"),
+  cMyc = if_else(CMYC>median(CMYC), "High", "Low"),
+  pten = if_else(PTEN>median(PTEN), "High", "Low"),
+)
+
+##all data
+g_all <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ 1, data = pat_dat_all) %>% 
+  ggsurvplot(size = 0.5, censor = F)
+g_all$plot <- g_all$plot+
+  theme_cowplot(8)+
+  labs(x = "Time (months)")+
+  theme(legend.position = "none")+
+  scale_color_manual(values = c("darkred"))
+g_all
+ggsave("figure export/TCGA_surv.png", width = 2, height = 1.5, units = "in")
+
+##SHP2 - sanity check
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pSHP2, data = pt_rppa) %>% km_plot()
+
+##AKT
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pAkt_308, data = pt_rppa) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pAkt_308, data = pt_rppa) %>% km_plot()
+
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pAkt_473, data = pt_rppa) %>% km_plot()
+ggsave("figure export/TCGA_AKT_OS.svg", width = 2, height = 2, units = "in")
+
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pAkt_473, data = pt_rppa) %>% km_plot()
+
+##mTOR
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pmTOR, data = pt_rppa) %>% km_plot()
+ggsave("figure export/TCGA_mTOR_OS.svg", width = 2, height = 2, units = "in")
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pmTOR, data = pt_rppa) %>% km_plot()
+
+##GSK3
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pGSK3, data = pt_rppa) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pGSK3, data = pt_rppa) %>% km_plot()
+
+##GSK3ab
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pGSK3ab, data = pt_rppa) %>% km_plot()
+ggsave("figure export/TCGA_GSK3ab_OS.svg", width = 2, height = 2, units = "in")
+
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pGSK3ab, data = pt_rppa) %>% km_plot()
+
+##CHK1
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pCHK1, data = pt_rppa) %>% km_plot()
+ggsave("figure export/TCGA_CHK1_OS.svg", width = 2, height = 2, units = "in")
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pCHK1, data = pt_rppa) %>% km_plot()
+
+##PTEN
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ pten, data = pt_rppa) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ pten, data = pt_rppa) %>% km_plot()
+
+##cMyc
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ cMyc, data = pt_rppa) %>% km_plot()
+ggsave("figure export/TCGA_cMyc_OS.svg", width = 2, height = 2, units = "in")
+
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ cMyc, data = pt_rppa) %>% km_plot()
+ggsave("figure export/TCGA_cMyc_DFS.svg", width = 2, height = 2, units = "in")
+
+
+pt_rppa %>% 
+  ggplot()+
+  geom_density(aes(x = AKT_pS473))+
+  geom_vline(xintercept = median(pt_rppa$AKT_pS473))
+
+# colnames(pt_rppa)
+```
+
+```{r}
+myc_h <- pt_rppa %>% top_frac(0.33, CMYC) %>% pull(PATIENT_ID)
+myc_l <- pt_rppa %>% top_frac(-0.33, CMYC) %>% pull(PATIENT_ID)
+
+pt_myc <- pt_rppa %>% mutate(MYC_lev = case_when(
+  PATIENT_ID %in% myc_h ~ "High",
+  PATIENT_ID %in% myc_l ~ "Low",
+  T ~ "MED",
+)) %>% select(c("PATIENT_ID", "OS_MONTHS", "OS_STATUS", "CMYC", "MYC_lev"))
+
+
+myc_fit <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ MYC_lev, data = pt_myc)
+g1 <- ggsurvplot(myc_fit, pval = T, pval.size = 7/.pt, censor = F, pval.coord = c(1, 0.1), size = 0.5)
+g1$plot <- g1$plot+
+  theme_cowplot(8)+
+  # theme(legend.position = "none")+
+  labs(x = "Time (months)")+
+  scale_color_manual(values = c("darkred", "darkblue", "darkgray"))
+g1
+
+```
+
+
+
+```{r fig.width=2.5, fig.height=2.5}
+# what if I only look at the high AKT samples and split them based on their mTOR, GSK3 activation?
+akt_high <- pt_rppa %>% filter(pAkt_473 == "High")
+akt_high <- akt_high %>% mutate(
+  AKT_high_pmTOR = if_else(MTOR_pS2448>median(MTOR_pS2448), "High", "Low"),
+  AKT_high_pGSK3 = if_else(GSK3_pS9>median(GSK3_pS9), "High", "Low"),
+  AKT_high_pGSK3ab = if_else(GSK3ALPHABETA_pS21S9>median(GSK3ALPHABETA_pS21S9), "High", "Low"),
+  AKT_high_pCHK1 = if_else(CHK1_pS345>median(CHK1_pS345), "High", "Low"),
+)
+
+##mTOR
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ AKT_high_pmTOR, data = akt_high) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ AKT_high_pmTOR, data = akt_high) %>% km_plot()
+
+##GSK3
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ AKT_high_pGSK3, data = akt_high) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ AKT_high_pGSK3, data = akt_high) %>% km_plot()
+
+##GSK3ab
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ AKT_high_pGSK3ab, data = akt_high) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ AKT_high_pGSK3ab, data = akt_high) %>% km_plot()
+
+##CHK1
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ AKT_high_pCHK1, data = akt_high) %>% km_plot()
+ggsave("figure export/TCGA_AKT-high_CHK1_OS.svg", width = 2, height = 2, units = "in")
+
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ AKT_high_pCHK1, data = akt_high) %>% km_plot()
+
+
+akt_low <- pt_rppa %>% filter(pAkt_473 == "Low")
+akt_low <- akt_low %>% mutate(
+  AKT_low_pmTOR = if_else(MTOR_pS2448>median(MTOR_pS2448), "High", "Low"),
+  AKT_low_pGSK3 = if_else(GSK3_pS9>median(GSK3_pS9), "High", "Low"),
+  AKT_low_pGSK3ab = if_else(GSK3ALPHABETA_pS21S9>median(GSK3ALPHABETA_pS21S9), "High", "Low"),
+  AKT_low_pCHK1 = if_else(CHK1_pS345>median(CHK1_pS345), "High", "Low"),
+
+)
+
+##mTOR
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ AKT_low_pmTOR, data = akt_low) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ AKT_low_pmTOR, data = akt_low) %>% km_plot()
+
+##GSK3
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ AKT_low_pGSK3, data = akt_low) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ AKT_low_pGSK3, data = akt_low) %>% km_plot()
+
+##GSK3ab
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ AKT_low_pGSK3ab, data = akt_low) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ AKT_low_pGSK3ab, data = akt_low) %>% km_plot()
+
+##CHK1
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ AKT_low_pCHK1, data = akt_low) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ AKT_low_pCHK1, data = akt_low) %>% km_plot()
+```
+
+
+##TCGA mutation/deletion data - PTEN
+```{r}
+mut_data <- read_tsv("TCGA/data_mutations.txt")
+mut_data$Tumor_Sample_Barcode <- mut_data$Tumor_Sample_Barcode %>% gsub(".{3}$", "", .)
+colnames(mut_data) <- colnames(mut_data) %>% gsub("Tumor_Sample_Barcode", "PATIENT_ID", .)
+
+pt_mut <- patient_data %>% semi_join(mut_data)
+pten_mut <- mut_data %>% filter(Hugo_Symbol == "PTEN") %>% pull(PATIENT_ID)
+pt_mut <- pt_mut %>% mutate(PTEN_mut = if_else(PATIENT_ID %in% pten_mut, T, F))
+count(pt_mut, PTEN_mut)
+
+km_pten <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PTEN_mut, data = pt_mut)
+km_plot(km_pten)
+
+cna_data <- read_tsv("TCGA/data_cna.txt") %>% 
+  distinct(Hugo_Symbol, .keep_all = T) %>% 
+  column_to_rownames(var = "Hugo_Symbol") %>% 
+  dplyr::select(-Entrez_Gene_Id, -Cytoband) %>% 
+  t() %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "PATIENT_ID")
+cna_data$PATIENT_ID <- cna_data$PATIENT_ID %>% gsub(".{3}$", "", .)
+
+# head(cna_data)
+
+pten_del <- cna_data %>% filter(PTEN < -1) %>% pull(PATIENT_ID)
+pt_del <- patient_data %>% semi_join(cna_data) %>% 
+  mutate(PTEN_del = if_else(PATIENT_ID %in% pten_del, T, F))
+
+km_pten_del <- survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PTEN_del, data = pt_del)
+km_plot(km_pten_del)
+count(pt_del, PTEN_del)
+
+
+pt_del_mut <- patient_data %>% semi_join(cna_data) %>% semi_join(mut_data) %>% 
+  mutate(PTEN_d_m = if_else(PATIENT_ID %in% pten_del | PATIENT_ID %in% pten_mut, T, F))
+count(pt_del_mut, PTEN_d_m)
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PTEN_d_m, data = pt_del_mut) %>% km_plot()
+count(pt_del_mut, PTEN_d_m)
+
+
+```
+##cluster TCGA for microenv signals
+###load RNA-seq data
+```{r}
+#load TCGA RNA-seq data and format
+tcga.rna <- read_tsv("TCGA/data_mrna_seq_v2_rsem.txt")
+genes <- tcga.rna[,1:2]
+tcga.rna <- tcga.rna %>% distinct(Entrez_Gene_Id, .keep_all = T)
+colnames(genes) <- c("gene_name", "entrez")
+tcga.rna <- tcga.rna[,-1] %>% column_to_rownames(var = "Entrez_Gene_Id")
+colnames(tcga.rna) <- colnames(tcga.rna) %>% gsub(".{3}$", "", .)
+```
+###run GSVA
+```{r}
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(msigdbr)
+library(parallel)
+library(GSVA)
+
+## Retrieve Hallmark gene sets from the database:
+hall = msigdbr(species = "Homo sapiens", category = "H") 
+cp.b = msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:BIOCARTA") 
+cp.r = msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:REACTOME") 
+cp.p = msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:PID") 
+cp.k = msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:KEGG")
+cgp = msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CGP")
+gene_sets <- rbind(hall, cp.b, cp.r, cp.p, cp.k, cgp) %>% split(x = .$entrez_gene, f = .$gs_name)
+
+tcga.samples <- patient_data %>% pull(PATIENT_ID)
+
+#run GSVA calc
+data_for_gsva <- tcga.rna %>% select_if(colnames(.) %in% tcga.samples) %>% 
+  data.matrix()
+force_calculate_gsva <- T
+if(!file.exists("gsva_results_1.rds") | isTRUE(force_calculate_gsva)){
+  gsva_res <- gsva(
+    data_for_gsva, 
+    gene_sets, 
+    verbose = F,
+    method = "gsva", 
+    min.sz = 10, # Minimum number of genes required to include a gene set
+    parallel.sz=detectCores()#-1
+    )
+  ## Save GSVA results for speed:
+  saveRDS(gsva_res, file = "gsva_results_1.rds")
+  
+} else if(file.exists("gsva_results_1.rds") & !exists("gsva_res")){ 
+  ## Load GSVA results, if they haven't been loaded/calculated already:
+  gsva_res <- readRDS("gsva_results_1.rds") 
+}
+## Build data frame versions of GSVA results:
+gsva_res.df <- gsva_res %>% data.frame(gene.set=rownames(.), .) # Convert to data frame
+gsva_res.df.t <- gsva_res %>% t() %>% data.frame(ID=rownames(.), .)
+rownames(gsva_res.df) <- gsva_res.df$gene.set
+
+
+
+```
+###calculate km curves for GSVA
+####Hallmark
+```{r}
+#combine GSVA df and patient info
+colnames(gsva_res.df.t)[1] <- "PATIENT_ID"
+pt_gsva <- patient_data %>% inner_join(gsva_res.df.t) %>% 
+  mutate(
+    Hallmark_TNFa = if_else(HALLMARK_TNFA_SIGNALING_VIA_NFKB>median(HALLMARK_TNFA_SIGNALING_VIA_NFKB), "High", "Low"),
+    Hallmark_TGFb = if_else(HALLMARK_TGF_BETA_SIGNALING>median(HALLMARK_TGF_BETA_SIGNALING), "High", "Low"),
+    Hallmark_hypoxia = if_else(HALLMARK_HYPOXIA>median(HALLMARK_HYPOXIA), "High", "Low"),
+    Hallmark_akt_mtor = if_else(HALLMARK_PI3K_AKT_MTOR_SIGNALING>median(HALLMARK_PI3K_AKT_MTOR_SIGNALING), "High", "Low"),
+    Verhaak_MES = if_else(VERHAAK_GLIOBLASTOMA_MESENCHYMAL>median(VERHAAK_GLIOBLASTOMA_MESENCHYMAL), "High", "Low"),
+    Hallmark_EMT = if_else(HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION>median(HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION), "High", "Low"),
+  )
+
+pt_gsva <- pt_gsva %>% mutate(PMT_sub = case_when(
+  VERHAAK_GLIOBLASTOMA_MESENCHYMAL>median(VERHAAK_GLIOBLASTOMA_MESENCHYMAL) & VERHAAK_GLIOBLASTOMA_PRONEURAL>median(VERHAAK_GLIOBLASTOMA_PRONEURAL) ~ "Mes high, PN high",
+  VERHAAK_GLIOBLASTOMA_MESENCHYMAL>median(VERHAAK_GLIOBLASTOMA_MESENCHYMAL) & VERHAAK_GLIOBLASTOMA_PRONEURAL<median(VERHAAK_GLIOBLASTOMA_PRONEURAL) ~ "Mes high, PN low",
+  VERHAAK_GLIOBLASTOMA_MESENCHYMAL<median(VERHAAK_GLIOBLASTOMA_MESENCHYMAL) & VERHAAK_GLIOBLASTOMA_PRONEURAL<median(VERHAAK_GLIOBLASTOMA_PRONEURAL) ~ "Mes low, PN low",
+  VERHAAK_GLIOBLASTOMA_MESENCHYMAL<median(VERHAAK_GLIOBLASTOMA_MESENCHYMAL) & VERHAAK_GLIOBLASTOMA_PRONEURAL>median(VERHAAK_GLIOBLASTOMA_PRONEURAL) ~ "Mes low, PN high",
+))
+
+pt_gsva_pmt <- pt_gsva %>% filter(PMT_sub %in% c("Mes high, PN low", "Mes low, PN high"))
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PMT_sub, data = pt_gsva_pmt) %>% km_plot()
+ggsave("figure export/TCGA_MES-PN_OS.svg", width = 2.5, height = 2, units = "in")
+
+count(pt_gsva, PMT_sub)
+
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ Verhaak_MES, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ Hallmark_EMT, data = pt_gsva) %>% km_plot()
+ggsave("figure export/TCGA_EMT_OS.svg", width = 2.5, height = 2, units = "in")
+
+
+
+# survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ Hallmark_TNFa, data = pt_gsva) %>% km_plot()
+# survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ Hallmark_TGFb, data = pt_gsva) %>% km_plot()
+# survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ Hallmark_hypoxia, data = pt_gsva) %>% km_plot()
+# survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ Hallmark_akt_mtor, data = pt_gsva) %>% km_plot()
+# survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ Hallmark_TNFa, data = pt_gsva) %>% km_plot()
+# survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ Hallmark_TGFb, data = pt_gsva) %>% km_plot()
+# survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ Hallmark_hypoxia, data = pt_gsva) %>% km_plot()
+# survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ Hallmark_akt_mtor, data = pt_gsva) %>% km_plot()
+
+```
+####PID
+```{r}
+#combine GSVA df and patient info
+colnames(gsva_res.df.t)[1] <- "PATIENT_ID"
+pt_gsva <- patient_data %>% inner_join(gsva_res.df.t) %>% 
+  mutate(
+    PID_TNFa = if_else(PID_TNF_PATHWAY>median(PID_TNF_PATHWAY), "High", "Low"),
+    PID_TGFb = if_else(PID_TGFBR_PATHWAY>median(PID_TGFBR_PATHWAY), "High", "Low"),
+    PID_hypoxia = if_else(PID_HIF1A_PATHWAY>median(PID_HIF1A_PATHWAY), "High", "Low"),
+    PID_myc = if_else(PID_MYC_PATHWAY>median(PID_MYC_PATHWAY), "High", "Low"),
+    PID_akt = if_else(PID_PI3KCI_AKT_PATHWAY>median(PID_PI3KCI_AKT_PATHWAY), "High", "Low"),
+    PID_shp2 = if_else(PID_SHP2_PATHWAY>median(PID_SHP2_PATHWAY), "High", "Low"),
+  )
+
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PID_TNFa, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PID_TGFb, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PID_hypoxia, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PID_myc, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PID_akt, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ PID_shp2, data = pt_gsva) %>% km_plot()
+
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ PID_TNFa, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ PID_TGFb, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ PID_hypoxia, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ PID_myc, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ PID_akt, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ PID_shp2, data = pt_gsva) %>% km_plot()
+
+
+```
+
+####KEGG
+```{r}
+#combine GSVA df and patient info
+colnames(gsva_res.df.t)[1] <- "PATIENT_ID"
+pt_gsva <- patient_data %>% inner_join(gsva_res.df.t) %>% 
+  mutate(
+    KEGG_TGFb = if_else(KEGG_TGF_BETA_SIGNALING_PATHWAY>median(KEGG_TGF_BETA_SIGNALING_PATHWAY), "High", "Low"),
+    KEGG_mtor = if_else(KEGG_MTOR_SIGNALING_PATHWAY>median(KEGG_MTOR_SIGNALING_PATHWAY), "High", "Low"),
+    KEGG_autophagy = if_else(KEGG_REGULATION_OF_AUTOPHAGY>median(KEGG_REGULATION_OF_AUTOPHAGY), "High", "Low"),
+  )
+
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ KEGG_TGFb, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ KEGG_mtor, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ KEGG_autophagy, data = pt_gsva) %>% km_plot()
+
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ KEGG_TGFb, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ KEGG_mtor, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ KEGG_autophagy, data = pt_gsva) %>% km_plot()
+```
+
+####BIOCARTA
+```{r}
+#combine GSVA df and patient info
+colnames(gsva_res.df.t)[1] <- "PATIENT_ID"
+pt_gsva <- patient_data %>% inner_join(gsva_res.df.t) %>% 
+  mutate(
+    BIOCARTA_TGFb = if_else(BIOCARTA_TGFB_PATHWAY>median(BIOCARTA_TGFB_PATHWAY), "High", "Low"),
+    BIOCARTA_tnfr1 = if_else(BIOCARTA_TNFR1_PATHWAY>median(BIOCARTA_TNFR1_PATHWAY), "High", "Low"),
+    BIOCARTA_tnfr2 = if_else(BIOCARTA_TNFR2_PATHWAY>median(BIOCARTA_TNFR2_PATHWAY), "High", "Low"),
+    BIOCARTA_hif = if_else(BIOCARTA_HIF_PATHWAY>median(BIOCARTA_HIF_PATHWAY), "High", "Low"),
+  )
+
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ BIOCARTA_TGFb, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ BIOCARTA_tnfr1, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ BIOCARTA_tnfr2, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = OS_MONTHS, event = OS_STATUS) ~ BIOCARTA_hif, data = pt_gsva) %>% km_plot()
+
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ BIOCARTA_TGFb, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ BIOCARTA_tnfr1, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ BIOCARTA_tnfr2, data = pt_gsva) %>% km_plot()
+survfit(Surv(time = DFS_MONTHS, event = DFS_STATUS) ~ BIOCARTA_hif, data = pt_gsva) %>% km_plot()
+```
+
+
+
+
+
+
+
+#JNK data
+
+```{r}
+##OLD DATA DO NOT USE
+dat1 <- read_excel("../11-11-22 U87L TMZ carbo JNKi cell death results.xlsx")
+colnames(dat1) <- colnames(dat1) %>% gsub("chemo", "treat", .)
+dat1$inhib <- dat1$inhib %>% gsub("dmso", "DMSO", .) 
+
+dat2 <- dat1 %>% 
+  dplyr::select(inhib, treat, rep1, rep2, rep3) %>% 
+  pivot_longer(-c(inhib, treat), values_to = "alive", names_to = "rep") %>% 
+  mutate(dead = 100 - alive)
+
+dat3 <- dat2 %>% group_by(inhib, treat) %>% 
+  summarise(avg_dead = mean(dead), stdev = sd(dead))
+
+dat3$inhib <- dat3$inhib %>% factor(c("DMSO", "JNKi"))
+dat3$treat <- dat3$treat %>% gsub("CARB", "CARBO", .) %>% factor(c("DMSO", "TMZ", "CARBO"))
+
+dat3 %>% ggplot(aes(x = inhib, y = avg_dead, fill = inhib))+
+  geom_bar(stat = "identity", position ="dodge", color = "black")+
+  geom_errorbar(aes(ymax = avg_dead+stdev, ymin = avg_dead-stdev), width = 0.3)+
+  facet_wrap(~treat)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
+  theme(legend.position = "none")+
+  scale_fill_okabe_ito(order = c(9, 5))
+ggsave("figure export/JNKi_cell_death.svg", width = 3, height = 2, units = "in")
+
+for (t in unique(factor(dat2$treat))) {
+  c1 <- dat2 %>% filter(inhib == "DMSO", treat == t) %>% pull(dead)
+  c2 <- dat2 %>% filter(inhib == "JNKi", treat == t) %>% pull(dead)
+  print(t)
+  t.test(c1, c2) %>% print()
+}
+
+```
+##JNKi cell death - 
+```{r}
+dat1 <- read_excel("../02-28-23 siJUN JNKi TMZ carbo cell death analysis.xlsx", range = "A9:D15")
+dat1 <- dat1 %>% pivot_longer(cols = -c(inhib, treat), names_to = "rep", values_to = "alive") %>% 
+  mutate(dead = 100-alive)
+
+dat2 <- dat1 %>% group_by(inhib, treat) %>% 
+  summarise(avg_dead = mean(dead), sd = sd(dead))
+dat2$treat <- dat2$treat %>% factor(c("DMSO", "TMZ", "CARBO"))
+
+dat2 %>% ggplot(aes(x = inhib, y = avg_dead, fill = inhib))+
+  geom_bar(stat = "identity", position ="dodge", color = "black")+
+  geom_errorbar(aes(ymax = avg_dead+sd, ymin = avg_dead-sd), width = 0.3)+
+  facet_wrap(~treat)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "% dead")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
+  theme(legend.position = "none")+
+  scale_fill_okabe_ito(order = c(9, 5))
+ggsave("figure export/JNKi_cell_death.svg", width = 3, height = 2, units = "in")
+
+```
+
+##PTEN TMZ/CARBO qPCR
+```{r}
+dat1 <- read_excel("../11-01-22 U87L TMZ carbo RTqPCR PTEN.xlsx", sheet = "Sheet2")
+dat2 <- dat1 %>% group_by(treat) %>% summarise(mean = mean(PTEN), sd = sd(PTEN))
+dat2$treat <- dat2$treat %>% factor(c("DMSO", "TMZ", "CARBO"))
+
+dat2 %>% ggplot(aes(x = treat, y = mean, fill = treat))+
+  geom_bar(stat = "identity", position ="dodge", color = "black")+
+  geom_errorbar(aes(ymax = mean+sd, ymin = mean-sd), width = 0.3)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "Normalized Fold Change")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
+  theme(legend.position = "none", plot.title = element_text(face = "italic", hjust = 0.5))+
+  labs(title = "PTEN")+
+  scale_fill_okabe_ito(order = c(9, 5, 3))
+ggsave("figure export/PTEN_qPCR_TMZ-CARBO.svg", width = 1.5, height = 2, units = "in")
+
+anova1 <- aov(PTEN ~ treat, data = dat1)
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+```
+
+
+##PTEN CARBO+MAPKi qPCR
+```{r}
+dat1 <- read_excel("../11-15-22 U87L carbo MAPKi Chk1i RTqPCR PTEN.xlsx", sheet = "Sheet2")
+
+dat1 <- dat1 %>% group_by(treat) %>% summarise(mean = mean(PTEN), sd = sd(PTEN))
+dat1$treat <- dat1$treat %>% gsub("\\+", "\n", .) %>% factor(c("DMSO", "CARBO", "CARBO\nJNKi", "CARBO\nMEKi", "CARBO\np38i"))
+
+dat1 %>% ggplot(aes(x = treat, y = mean, fill = treat))+
+  geom_bar(stat = "identity", position ="dodge", color = "black", aes(alpha = treat))+
+  geom_errorbar(aes(ymax = mean+sd, ymin = mean-sd), width = 0.3)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "Normalized Fold Change")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))+
+  theme(legend.position = "none", plot.title = element_text(face = "italic", hjust = 0.5))+
+  labs(title = "PTEN")+
+  scale_fill_okabe_ito(order = c(9, 5, 5, 5, 5))+
+  scale_alpha_manual(values = c(1, 1, 0.8, 0.6, 0.4))
+ggsave("figure export/PTEN_qPCR_Carbo+MAPKi.svg", width = 2.5, height = 2, units = "in")
+ggsave("figure export/PTEN_qPCR_Carbo+MAPKi.png", width = 2.5, height = 2, units = "in")
+```
+##PTEN siJUN qPCR
+```{r}
+dat1 <- read_excel("../12-09-22 U87L carbo cJun siRNA RTqPCR (PTEN cJun).xlsx", sheet = "Sheet2")
+
+dat2 <- dat1 %>% mutate(siRNA = if_else(grepl("ctrl", treat), "Control \nsiRNA", "cJun \nsiRNA"),
+                        drug = if_else(grepl("unt", treat), "Untreated", "CARBO"))
+dat3 <- dat2 %>% group_by(siRNA, drug) %>% 
+  summarise(mean = mean(PTEN), sd = sd(PTEN))
+
+dat3$siRNA <- dat3$siRNA %>% factor(c("Control \nsiRNA", "cJun \nsiRNA"))
+dat3$drug <- dat3$drug %>% factor(c("Untreated", "CARBO"))
+
+dat3 %>% ggplot(aes(x = siRNA, y = mean, fill = siRNA))+
+  geom_bar(stat = "identity", position ="dodge", color = "black")+
+  geom_errorbar(aes(ymax = mean+sd, ymin = mean-sd), position = "dodge", width = 0.3)+
+  theme_cowplot(8)+
+  labs(x = element_blank(), y = "Normalized Fold Change")+
+  scale_y_continuous(expand = expansion(mult = c(0, 0.3)))+
+  theme(legend.position = "none", plot.title = element_text(face = "italic", hjust = 0.5))+
+  labs(title = "PTEN")+
+  scale_fill_okabe_ito(order = c(9, 5))+
+  facet_wrap(~drug)
+ggsave("figure export/PTEN_qPCR_cJun-si.svg", width = 2.5, height = 2, units = "in")
+ggsave("figure export/PTEN_qPCR_cJun-si.png", width = 2.5, height = 2, units = "in")
+
+anova1 <- aov(PTEN ~ siRNA+drug, data = dat2)
+summary(anova1)
+hsd1 <- TukeyHSD(anova1)
+hsd1
+
+```
